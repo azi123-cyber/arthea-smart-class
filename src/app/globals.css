@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #f0f2f5;
+    --foreground: #111b21;
+    --primary: #00a884;
+    --primary-dark: #075e54;
+    --secondary: #25d366;
+    --accent: #34b7f1;
+    --card: #ffffff;
+    --border: #dfe5e7;
+  }
+
+  .dark {
+    --background: #0b141a;
+    --foreground: #e9edef;
+    --primary: #00a884;
+    --primary-dark: #005c4b;
+    --secondary: #25d366;
+    --accent: #34b7f1;
+    --card: #111b21;
+    --border: #222d32;
+  }
+
+  body {
+    @apply bg-[var(--background)] text-[var(--foreground)] antialiased transition-colors duration-300;
+    /* Premium subtle background pattern */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(166, 100%, 33%, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(187, 100%, 47%, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(166, 100%, 33%, 0.03) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(187, 100%, 47%, 0.03) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .dark-icon-bright {
+    @apply dark:brightness-200 dark:contrast-125 dark:invert-[0.1];
+  }
+}
+
+@layer components {
+  .premium-card {
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-[2rem] shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden;
+  }
+  
+  .glass {
+    @apply bg-white/70 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/10;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-dark text-white font-black py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-primary/20 active:scale-95 flex items-center justify-center gap-2;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}

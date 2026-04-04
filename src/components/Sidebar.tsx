@@ -18,13 +18,15 @@ import {
   X,
   PenSquare,
   Users,
-  FileEdit
+  FileEdit,
+  Settings
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { role, username, logout } = useAuth();
   const [showBugModal, setShowBugModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [bugText, setBugText] = useState('');
   const [bugSent, setBugSent] = useState(false);
 
@@ -115,16 +117,7 @@ export default function Sidebar() {
           )}
         </nav>
 
-        {/* Bottom Controls: Bug Report */}
-        <div className="px-3 pb-3 flex flex-col gap-1">
-          <button
-            onClick={() => setShowBugModal(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-200 group"
-          >
-            <Bug size={20} className="group-hover:rotate-12 transition-transform" />
-            <span className="font-bold text-sm">Laporkan Bug</span>
-          </button>
-        </div>
+        {/* Bottom Controls removed as it is now in Settings */}
 
         {/* User info */}
         <div className="px-4 pb-4 pt-3 border-t border-gray-200 dark:border-gray-800">
@@ -144,8 +137,8 @@ export default function Sidebar() {
                 }`}>{role === 'admin' ? 'Administrator' : role === 'teacher' ? 'Guru / Teacher' : 'Student Account'}</p>
               </div>
             </div>
-            <button onClick={logout} title="Log Out" className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
-              <LogOut size={18} />
+            <button onClick={() => setShowSettingsModal(true)} title="Pengaturan" className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
+              <Settings size={18} />
             </button>
           </div>
           <p className="text-center text-[9px] font-black text-gray-300 dark:text-gray-700 mt-3 tracking-[0.2em] uppercase">ARSYIR DEV</p>
@@ -165,10 +158,31 @@ export default function Sidebar() {
             </Link>
           );
         })}
-        <button onClick={logout} className="flex flex-col items-center justify-center p-2 rounded-xl w-12 text-red-500">
-           <LogOut size={20} className="mb-1" />
+        <button onClick={() => setShowSettingsModal(true)} className="flex flex-col items-center justify-center p-2 rounded-xl w-12 text-gray-400 hover:text-primary">
+           <Settings size={20} className="mb-1" />
+           <span className="text-[9px] font-bold uppercase transition-all tracking-tighter w-full text-center">Set</span>
         </button>
       </nav>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white dark:bg-[#111b21] rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in">
+             <div className="bg-[#075E54] dark:bg-[#202c33] px-6 py-5 text-white flex items-center justify-between">
+               <h3 className="text-lg font-black flex items-center gap-2"><Settings size={20}/> Pengaturan</h3>
+               <button onClick={() => setShowSettingsModal(false)} className="text-white/70 hover:text-white transition-colors"><X size={24} /></button>
+             </div>
+             <div className="p-4 flex flex-col gap-2">
+                <button onClick={() => { setShowSettingsModal(false); setShowBugModal(true); }} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-orange-600 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/10 dark:hover:bg-orange-900/20 font-bold transition-colors">
+                   <Bug size={20} /> Laporkan Bug
+                </button>
+                <button onClick={() => { setShowSettingsModal(false); logout(); }} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 font-bold transition-colors">
+                   <LogOut size={20} /> Keluar Aplikasi
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
 
       {/* Bug Report Modal */}
       {showBugModal && (

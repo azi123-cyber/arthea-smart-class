@@ -66,12 +66,14 @@ export default function Login() {
 
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="w-full max-w-md premium-card animate-fade-in relative z-10 shadow-2xl">
+    <div className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden bg-[#e5ddd5] dark:bg-[#0b141a]">
+      {/* Pattern Layer */}
+      <div className="absolute inset-0 z-0 opacity-10 dark:opacity-5 mix-blend-multiply dark:mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/always-grey.png")' }}></div>
+      <div className="w-full max-w-md premium-card animate-fade-in relative z-10 shadow-2xl border-none">
         {/* Header decoration */}
-        <div className="bg-primary px-8 py-10 text-white text-center relative">
-          <div className="absolute top-0 left-0 w-full h-full opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '16px 16px' }} />
-          <img src="/bahan/arthea_logo_light.png" alt="logo" className="h-16 mx-auto mb-4 object-contain relative z-10 drop-shadow-lg" />
+        <div className="bg-[#075E54] dark:bg-[#202c33] px-8 py-10 text-white text-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/food.png")' }} />
+          <img src="/bahan/arthea_logo_light.png" alt="logo" className="h-16 mx-auto mb-4 object-contain relative z-10 drop-shadow-2xl" />
           <h2 className="text-3xl font-black relative z-10">Selamat Datang</h2>
           <p className="text-white/80 text-sm mt-1 relative z-10 font-medium">Masuk ke Arthea Smart Class</p>
         </div>

@@ -17,10 +17,10 @@ export default function AIGenerator() {
   const [generated, setGenerated] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [subMateri, setSubMateri] = useState("");
-  const [questionCount, setQuestionCount] = useState(5);
+  const [questionCount, setQuestionCount] = useState<number | string>(5);
   const [difficulty, setDifficulty] = useState(1);
-  const [duration, setDuration] = useState(60);
-  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [duration, setDuration] = useState<number | string>(60);
+  const [maxAttempts, setMaxAttempts] = useState<number | string>(1);
   const [tokenUjian, setTokenUjian] = useState("");
   const [includeClue, setIncludeClue] = useState(true);
   const [includeExplanation, setIncludeExplanation] = useState(true);
@@ -295,13 +295,17 @@ export default function AIGenerator() {
                       type="number"
                       min="1"
                       max="20"
-                      value={questionCount}
+                      value={questionCount === '' ? '' : questionCount}
                       onChange={(e) => {
-                        let val = parseInt(e.target.value);
-                        if (isNaN(val)) val = 1;
-                        if (val > 20) val = 20;
-                        if (val < 1) val = 1;
-                        setQuestionCount(val);
+                        const val = e.target.value;
+                        if (val === '') { setQuestionCount(''); return; }
+                        let num = parseInt(val);
+                        if (isNaN(num)) return;
+                        if (num > 20) num = 20;
+                        setQuestionCount(num);
+                      }}
+                      onBlur={() => {
+                        if (!questionCount || typeof questionCount !== 'number' || questionCount < 1) setQuestionCount(1);
                       }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
@@ -312,13 +316,17 @@ export default function AIGenerator() {
                       type="number"
                       min="1"
                       max="180"
-                      value={duration}
+                      value={duration === '' ? '' : duration}
                       onChange={(e) => {
-                        let val = parseInt(e.target.value);
-                        if (isNaN(val)) val = 1;
-                        if (val > 180) val = 180;
-                        if (val < 1) val = 1;
-                        setDuration(val);
+                        const val = e.target.value;
+                        if (val === '') { setDuration(''); return; }
+                        let num = parseInt(val);
+                        if (isNaN(num)) return;
+                        if (num > 180) num = 180;
+                        setDuration(num);
+                      }}
+                      onBlur={() => {
+                        if (!duration || typeof duration !== 'number' || duration < 1) setDuration(60);
                       }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
@@ -332,13 +340,17 @@ export default function AIGenerator() {
                       type="number"
                       min="1"
                       max="10"
-                      value={maxAttempts}
+                      value={maxAttempts === '' ? '' : maxAttempts}
                       onChange={(e) => {
-                        let val = parseInt(e.target.value);
-                        if (isNaN(val)) val = 1;
-                        if (val > 10) val = 10;
-                        if (val < 1) val = 1;
-                        setMaxAttempts(val);
+                        const val = e.target.value;
+                        if (val === '') { setMaxAttempts(''); return; }
+                        let num = parseInt(val);
+                        if (isNaN(num)) return;
+                        if (num > 10) num = 10;
+                        setMaxAttempts(num);
+                      }}
+                      onBlur={() => {
+                        if (!maxAttempts || typeof maxAttempts !== 'number' || maxAttempts < 1) setMaxAttempts(1);
                       }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />

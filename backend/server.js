@@ -568,8 +568,8 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
       let contentPayload;
       if (imageContent && imageMimeType) {
         if (model === "meta-llama/llama-3.1-8b-instruct" || model === "anthropic/claude-3-haiku") {
-          // Both might complain about image structure depending on the format. We fallback to Gemini Flash Lite on openrouter.
-          model = "google/gemini-2.0-flash-lite-preview-02-05:free";
+          // Both might complain about image structure depending on the format. We fallback to Gemini Flash on openrouter.
+          model = "google/gemini-2.5-flash";
         }
         contentPayload = [
           { type: "text", text: systemPrompt },

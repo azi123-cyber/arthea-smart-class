@@ -16,7 +16,7 @@ export default function QuizInterface() {
   const [hasStarted, setHasStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, any>>({});
   const [violations, setViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -328,22 +328,52 @@ export default function QuizInterface() {
          </div>
          
          <div className="flex flex-col gap-4">
-           {currentQuestion.options.map((opt: string, idx: number) => (
-             <div 
-                key={idx} 
-                onClick={() => setAnswers({...answers, [currentQuestionIndex]: idx})}
-                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 outline-none
-                  ${selectedOption === idx ? 'border-primary bg-primary/5 shadow-md shadow-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'}`}
-             >
-                <div className={`w-8 h-8 rounded-full border-2 flex flex-shrink-0 items-center justify-center transition-colors
-                   ${selectedOption === idx ? 'border-primary bg-white dark:bg-dark' : 'border-gray-300 bg-gray-50 dark:bg-gray-800'}`}>
-                   {selectedOption === idx && <div className="w-4 h-4 bg-primary rounded-full animate-fade-in" />}
-                </div>
-                <div className={`text-lg transition-colors prose dark:prose-invert max-w-none ml-2 ${selectedOption === idx ? 'font-bold text-primary dark:text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
-                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
-                </div>
-             </div>
-           ))}
+           {currentQuestion.type === 'Essay' ? (
+              <textarea 
+                className="w-full p-6 h-40 bg-gray-50 dark:bg-gray-800 border-2 border-primary/10 rounded-2xl outline-none focus:border-primary/40 font-medium text-lg transition-all"
+                placeholder="Ketik jawaban Anda di sini..."
+                value={answers[currentQuestionIndex] || ""}
+                onChange={(e) => setAnswers({...answers, [currentQuestionIndex]: e.target.value})}
+              />
+           ) : (
+             currentQuestion.options.map((opt: string, idx: number) => {
+               const isSelected = currentQuestion.type === 'PGK' 
+                 ? (answers[currentQuestionIndex] || []).includes(idx)
+                 : answers[currentQuestionIndex] === idx;
+
+               return (
+                 <div 
+                    key={idx} 
+                    onClick={() => {
+                       if (currentQuestion.type === 'PGK') {
+                          const currentArr = answers[currentQuestionIndex] as any || [];
+                          if (currentArr.includes(idx)) {
+                             setAnswers({...answers, [currentQuestionIndex]: currentArr.filter((i: number) => i !== idx)});
+                          } else {
+                             setAnswers({...answers, [currentQuestionIndex]: [...currentArr, idx]});
+                          }
+                       } else {
+                          setAnswers({...answers, [currentQuestionIndex]: idx});
+                       }
+                    }}
+                    className={`p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 outline-none
+                      ${isSelected ? 'border-primary bg-primary/5 shadow-md shadow-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'}`}
+                 >
+                    <div className={`w-8 h-8 rounded-full border-2 flex flex-shrink-0 items-center justify-center transition-colors
+                       ${isSelected ? 'border-primary bg-white dark:bg-dark' : 'border-gray-300 bg-gray-50 dark:bg-gray-800'}`}>
+                       {isSelected && (
+                          currentQuestion.type === 'PGK' 
+                          ? <div className="text-primary font-black text-xs">✓</div>
+                          : <div className="w-4 h-4 bg-primary rounded-full animate-fade-in" />
+                       )}
+                    </div>
+                    <div className={`text-lg transition-colors prose dark:prose-invert max-w-none ml-2 ${isSelected ? 'font-bold text-primary dark:text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
+                    </div>
+                 </div>
+               );
+             })
+           )}
          </div>
 
          {currentQuestion.clue && (

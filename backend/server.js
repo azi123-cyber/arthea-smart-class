@@ -567,6 +567,10 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
 
       let contentPayload;
       if (imageContent && imageMimeType) {
+        if (model === "meta-llama/llama-3.1-8b-instruct" || model === "anthropic/claude-3-haiku") {
+          // Both might complain about image structure depending on the format. We fallback to Llama 3.2 Vision free on openrouter.
+          model = "meta-llama/llama-3.2-11b-vision-instruct:free";
+        }
         contentPayload = [
           { type: "text", text: systemPrompt },
           { type: "image_url", image_url: { url: `data:${imageMimeType};base64,${imageContent}` } }
@@ -602,6 +606,28 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
     } else {
       cleanJsonStr = generatedText.trim();
     }
+
+    // Fix unescaped literal newlines inside JSON strings which cause JSON.parse to fail
+    let inString = false;
+    let inEscaped = false;
+    let cleanedJson = "";
+    for (let i = 0; i < cleanJsonStr.length; i++) {
+      const c = cleanJsonStr[i];
+      if (c === '\\') {
+        inEscaped = !inEscaped;
+        cleanedJson += c;
+      } else if (c === '"' && !inEscaped) {
+        inString = !inString;
+        cleanedJson += c;
+      } else if (inString && (c === '\n' || c === '\r')) {
+        cleanedJson += (c === '\n' ? '\\n' : '\\r');
+        inEscaped = false;
+      } else {
+        cleanedJson += c;
+        inEscaped = false;
+      }
+    }
+    cleanJsonStr = cleanedJson;
 
     let questionsData;
     try {

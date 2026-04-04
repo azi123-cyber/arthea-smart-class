@@ -6,8 +6,10 @@ import { Sparkles, FileText, UploadCloud, Brain, Zap, Settings, Lock } from 'luc
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
+// Gunakan proxy Next.js API agar tidak ada Mixed Content (HTTPS → HTTP)
+const BACKEND_URL = '/api/backend';
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
+
 
 export default function AIGenerator() {
   const { username, role } = useAuth();

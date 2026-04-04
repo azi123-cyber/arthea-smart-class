@@ -6,7 +6,9 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, push, set, remove } from 'firebase/database';
 import { Card } from '@/components/ui/Card';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
+// Gunakan proxy Next.js API agar tidak ada Mixed Content (HTTPS → HTTP)
+// Semua request ke backend lewat /api/backend/* dan gambar via /api/uploads/*
+const BACKEND_URL = '/api/backend';
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
 
 export default function Forum() {
@@ -140,7 +142,9 @@ export default function Forum() {
 
   const deleteFileFromBackend = async (fileUrl: string) => {
     try {
-      const match = fileUrl.match(/\/uploads\/(.+)$/);
+      // Extract hanya nama file (tanpa subfolder) dari URL
+      // Contoh: http://host/uploads/uuid.jpg → 'uuid.jpg'
+      const match = fileUrl.match(/\/uploads\/([^\/]+)$/);
       if (match) {
         const fileName = match[1];
         await fetch(`${BACKEND_URL}/upload`, {
@@ -199,12 +203,19 @@ export default function Forum() {
 
   const fixUrl = (url?: string) => {
     if (!url) return url;
-    // Jika URL berisi IP lama atau localhost dari env lain, ganti dengan BACKEND_URL saat ini
+    // Serve semua gambar via proxy /api/uploads/ (HTTPS) agar tidak Mixed Content
     if (url.startsWith('http')) {
-       // Cari bagian /uploads/
-       const match = url.match(/\/uploads\/(.+)$/);
-       if (match) return `${BACKEND_URL}/uploads/${match[1]}`;
+       // Ambil nama file saja (flat, tanpa subfolder)
+       const match = url.match(/\/uploads\/([^\/]+)$/);
+       if (match) return `/api/uploads/${match[1]}`;
     }
+    // Jika relative path /uploads/*
+    if (url.startsWith('/uploads/')) {
+      const fileName = url.replace('/uploads/', '');
+      if (fileName) return `/api/uploads/${fileName}`;
+    }
+    // Sudah pakai proxy, return as-is
+    if (url.startsWith('/api/uploads/')) return url;
     return url;
   };
 

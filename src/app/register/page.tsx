@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { User, Lock, AlertCircle, Fingerprint, MessageSquare, CheckCircle2, RefreshCw } from 'lucide-react';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.43.217:5094';
+const BACKEND_URL = '/api/backend';
 
 export default function Register() {
   const [name, setName] = useState('');

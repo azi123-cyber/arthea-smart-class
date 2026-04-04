@@ -587,7 +587,8 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
             { role: "system", content: "Kamu adalah guru cerdas penanggung jawab pembuatan soal olimpiade." },
             { role: "user", content: contentPayload }
           ],
-          temperature: 0.7
+          temperature: 0.7,
+          max_tokens: 3000
         },
         { headers: { 
             "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,

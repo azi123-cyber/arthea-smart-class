@@ -432,9 +432,9 @@ export default function Forum() {
                         onKeyPress={(e) => e.key === 'Enter' && !uploadingFile && handleReply(selectedTopic)}
                         className="flex-1 bg-gray-50 dark:bg-black/20 rounded-[1.25rem] outline-none px-6 font-bold text-gray-800 dark:text-white placeholder:text-gray-400/60 py-4" />
                       <button onClick={() => handleReply(selectedTopic)} disabled={uploadingFile || (!replyText && !replyFile)}
-                        className="btn-primary !py-3 md:!py-4 !px-4 md:!px-10 flex items-center gap-2 shadow-xl shadow-primary/20">
-                        {uploadingFile ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={20} />}
-                        <span className="hidden md:inline">Kirim</span>
+                        className="bg-primary hover:bg-primary-dark text-white flex items-center justify-center flex-shrink-0 transition-all shadow-xl shadow-primary/20 w-12 h-12 rounded-full md:w-auto md:h-auto md:rounded-2xl md:!px-8 md:!py-4 md:gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {uploadingFile ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={20} className="ml-0.5 md:ml-0" />}
+                        <span className="hidden md:inline font-bold">Kirim</span>
                       </button>
                     </div>
                   </div>

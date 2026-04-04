@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { ref, get, child } from 'firebase/database';
-import { User, Lock, AlertCircle } from 'lucide-react';
+import { User, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -66,9 +66,7 @@ export default function Login() {
 
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden bg-[#e5ddd5] dark:bg-[#0b141a]">
-      {/* Pattern Layer */}
-      <div className="absolute inset-0 z-0 opacity-10 dark:opacity-5 mix-blend-multiply dark:mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/always-grey.png")' }}></div>
+    <div className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden">
       <div className="w-full max-w-md premium-card animate-fade-in relative z-10 shadow-2xl border-none">
         {/* Header decoration */}
         <div className="bg-[#075E54] dark:bg-[#202c33] px-8 py-10 text-white text-center relative overflow-hidden">
@@ -113,8 +111,8 @@ export default function Login() {
                   className="flex-1 bg-transparent outline-none text-gray-800 dark:text-gray-100 font-bold placeholder-gray-400/60"
                   required
                 />
-                <button type="button" onClick={() => setShowPass(!showPass)} className="text-primary hover:text-primary-dark text-[10px] font-black uppercase tracking-tight">
-                  {showPass ? 'Sembunyi' : 'Lihat'}
+                <button type="button" onClick={() => setShowPass(!showPass)} className="text-gray-400 hover:text-primary transition-colors">
+                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>

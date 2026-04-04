@@ -26,8 +26,8 @@ export default function CreateExam() {
   const [subject, setSubject] = useState('Matematika');
   const [targetClass, setTargetClass] = useState('Semua');
   const [hasTimer, setHasTimer] = useState(false);
-  const [durationMinutes, setDurationMinutes] = useState(60);
-  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [durationMinutes, setDurationMinutes] = useState<string>('60');
+  const [maxAttempts, setMaxAttempts] = useState<string>('1');
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [accessToken, setAccessToken] = useState('');
   const [tokenError, setTokenError] = useState('');
@@ -41,8 +41,10 @@ export default function CreateExam() {
   const countWords = (str: string) => str.trim().split(/\s+/).filter(Boolean).length;
 
   // Kompute nilai actual: durasi >360 = unlimited (null), attempts >5 = unlimited (0)
-  const actualDuration = hasTimer ? (durationMinutes > 360 ? null : durationMinutes) : null;
-  const actualMaxAttempts = maxAttempts > 5 ? 0 : maxAttempts; // 0 = unlimited
+  const numDuration = parseInt(durationMinutes || '0');
+  const numAttempts = parseInt(maxAttempts || '1');
+  const actualDuration = hasTimer ? (numDuration > 360 ? null : numDuration) : null;
+  const actualMaxAttempts = numAttempts > 5 ? 0 : numAttempts; // 0 = unlimited
   const [questions, setQuestions] = useState<Question[]>([{
     id: 1, type: 'PG', text: '', options: ['', '', '', ''], correctAnswer: 0, clue: '', pembahasan: '', showClue: false
   }]);
@@ -98,7 +100,7 @@ export default function CreateExam() {
         visibility,
         accessToken: (visibility === 'private' && enableToken) ? accessToken.trim() : null,
         showPembahasanNow,
-        createdBy: username,
+        createdBy: username || 'Guru',
         createdAt: Date.now(),
         questions: questions.map(q => ({
           type: q.type,
@@ -112,8 +114,9 @@ export default function CreateExam() {
         }))
       };
 
+      const cleanData = JSON.parse(JSON.stringify(examData));
       const examRef = push(ref(db, 'exams'));
-      await set(examRef, examData);
+      await set(examRef, cleanData);
       setSavedExamId(examRef.key);
     } catch (err) {
       alert('Gagal menyimpan ujian. Cek koneksi Firebase.');
@@ -219,14 +222,16 @@ export default function CreateExam() {
             <button onClick={() => setHasTimer(!hasTimer)}
               className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl border-2 font-bold text-sm transition-all ${hasTimer ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-500'}`}>
               <Clock size={18} />
-              <span>{hasTimer ? (durationMinutes > 360 ? `Unlimited (>${durationMinutes} menit)` : `${durationMinutes} Menit`) : 'Tidak Ada Batas Waktu'}</span>
+              <span>{hasTimer ? (numDuration > 360 ? `Unlimited (>${numDuration} menit)` : `${numDuration} Menit`) : 'Tidak Ada Batas Waktu'}</span>
             </button>
             {hasTimer && (
               <div className="space-y-1">
-                <input type="number" value={durationMinutes} onChange={e => setDurationMinutes(Math.max(1, Number(e.target.value)))} min={1}
-                  className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${durationMinutes > 360 ? 'border-green-400' : 'border-primary/20'}`} placeholder="Menit" />
-                <p className={`text-xs font-bold ml-1 ${durationMinutes > 360 ? 'text-green-600' : 'text-gray-400'}`}>
-                  {durationMinutes > 360 ? '✅ Lebih dari 360 menit = Unlimited (tanpa batas waktu)' : `Maksimal 360 menit. Lebih dari itu = unlimited.`}
+                <input type="number" 
+                  value={durationMinutes} 
+                  onChange={e => setDurationMinutes(e.target.value)} 
+                  className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${numDuration > 360 ? 'border-green-400' : 'border-primary/20'}`} placeholder="Menit" />
+                <p className={`text-xs font-bold ml-1 ${numDuration > 360 ? 'text-green-600' : 'text-gray-400'}`}>
+                  {numDuration > 360 ? '✅ Lebih dari 360 menit = Unlimited (tanpa batas waktu)' : `Maksimal 360 menit. Lebih dari itu = unlimited.`}
                 </p>
               </div>
             )}
@@ -236,10 +241,12 @@ export default function CreateExam() {
           <div className="space-y-3">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Maks. Pengerjaan</label>
             <div className="space-y-1">
-              <input type="number" value={maxAttempts} onChange={e => setMaxAttempts(Math.max(1, Number(e.target.value)))} min={1}
-                className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${maxAttempts > 5 ? 'border-green-400' : 'border-gray-100 dark:border-gray-700'}`} placeholder="Jumlah percobaan" />
-              <p className={`text-xs font-bold ml-1 ${maxAttempts > 5 ? 'text-green-600' : 'text-gray-400'}`}>
-                {maxAttempts > 5 ? `✅ Lebih dari 5 = Unlimited (siswa bisa kerjakan selamanya)` : `1–5 = terbatas. Lebih dari 5 = unlimited.`}
+              <input type="number" 
+                value={maxAttempts} 
+                onChange={e => setMaxAttempts(e.target.value)} 
+                className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${numAttempts > 5 ? 'border-green-400' : 'border-gray-100 dark:border-gray-700'}`} placeholder="Jumlah percobaan" />
+              <p className={`text-xs font-bold ml-1 ${numAttempts > 5 ? 'text-green-600' : 'text-gray-400'}`}>
+                {numAttempts > 5 ? `✅ Lebih dari 5 = Unlimited (siswa bisa kerjakan selamanya)` : `1–5 = terbatas. Lebih dari 5 = unlimited.`}
               </p>
             </div>
           </div>

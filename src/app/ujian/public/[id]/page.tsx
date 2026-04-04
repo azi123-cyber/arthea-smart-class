@@ -36,36 +36,49 @@ export default function PublicQuizInterface() {
 
   useEffect(() => {
     if (!params.id) return;
-    const materialRef = ref(db, `materials/${params.id}`);
-    get(materialRef).then((snap) => {
-      if (snap.exists()) {
-        const mat = snap.val();
-        
-        // Cek apakah owner masih punya soal ini (Existence Check)
-        if (mat.uploadedBy) {
-           get(ref(db, `users/${mat.uploadedBy}`)).then(uSnap => {
-             if (!uSnap.exists()) {
-                setIsDeleted(true);
-             }
-           });
+    
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Coba branch exams (Manual) baru fallback ke materials (AI)
+        let snap = await get(ref(db, `exams/${params.id}`));
+        if (!snap.exists()) {
+          snap = await get(ref(db, `materials/${params.id}`));
         }
 
-        setMaterialData(mat);
-        try {
-           let parsed = typeof mat.content === 'string' ? JSON.parse(mat.content) : mat.content;
-           if (parsed && !Array.isArray(parsed) && parsed.questions) parsed = parsed.questions;
-           if (!Array.isArray(parsed)) parsed = [parsed];
-           setQuestions(parsed);
-           if (mat.duration) setTimeLeft(mat.duration * 60);
-           else setTimeLeft(90 * 60);
-        } catch (e) {
-           console.error("Gagal mengurai konten materi");
+        if (snap.exists()) {
+          const data = snap.val();
+          setMaterialData(data);
+          
+          let qList = [];
+          if (data.questions) {
+            qList = typeof data.questions === 'string' ? JSON.parse(data.questions) : data.questions;
+          } else if (data.content) {
+            const content = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
+            qList = content.questions || content;
+          }
+          
+          if (!Array.isArray(qList)) qList = [qList];
+          setQuestions(qList);
+
+          // Handle timer
+          const dur = Number(data.durationMinutes || data.duration);
+          if (dur && dur > 0) {
+            setTimeLeft(dur * 60);
+          } else {
+            setTimeLeft(0);
+          }
+        } else {
+          setIsDeleted(true);
         }
-      } else {
-        setIsDeleted(true);
+      } catch (err) {
+        console.error("Error loading exam:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    fetchData();
   }, [params.id]);
 
 
@@ -188,7 +201,6 @@ export default function PublicQuizInterface() {
 
   useEffect(() => {
      if (questions.length > 0 && !submitted && hasStarted) {
-        if (timeLeft === 0) setTimeLeft(5400); // Default to 90 mins
         const timer = setInterval(() => {
            setTimeLeft(prev => {
               if (prev <= 1) {

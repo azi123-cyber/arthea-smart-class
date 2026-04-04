@@ -34,12 +34,27 @@ export default function ResultsPage() {
   const fetchResults = async (user: string, userRole: string) => {
     try {
       const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, `results`));
-      const usersSnap = await get(child(dbRef, `users`));
-      const usersData = usersSnap.exists() ? usersSnap.val() : {};
+      
+      let snapshot;
+      let usersSnap;
+      
+      // Prevent Permission Denied by restrictive rules for non-admins
+      if (userRole === 'admin' || userRole === 'teacher') {
+        snapshot = await get(child(dbRef, `results`));
+        usersSnap = await get(child(dbRef, `users`));
+      } else {
+        snapshot = await get(child(dbRef, `results/${user}`));
+        usersSnap = await get(child(dbRef, `users/${user}`));
+      }
+      
+      const usersData = usersSnap.exists() ? 
+        (userRole === 'admin' || userRole === 'teacher' ? usersSnap.val() : { [user]: usersSnap.val() }) 
+        : {};
 
       if (snapshot.exists()) {
-        const allData = snapshot.val();
+        const rawData = snapshot.val();
+        const allData = (userRole === 'admin' || userRole === 'teacher') ? rawData : { [user]: rawData };
+        
         const resultsList: any[] = [];
         const stats: any[] = [];
         

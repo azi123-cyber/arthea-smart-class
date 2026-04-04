@@ -414,7 +414,7 @@ export default function Forum() {
                   </div>
 
                   {/* Reply Input Bar */}
-                  <div className="mt-12 mx-2 md:mx-6 glass rounded-[2rem] p-3 md:p-4 sticky bottom-24 md:bottom-6 z-50 shadow-2xl border-2 border-white/20 dark:border-white/5 bg-white/95 dark:bg-[#0b141a]/95 backdrop-blur-xl">
+                  <div className="mt-12 mx-2 md:mx-6 glass rounded-[2rem] p-3 md:p-4 sticky bottom-[4.5rem] md:bottom-6 z-50 shadow-2xl border-2 border-white/20 dark:border-white/5 bg-white/95 dark:bg-[#0b141a]/95 backdrop-blur-xl mb-4 md:mb-0">
                     <input ref={replyFileRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={e => setReplyFile(e.target.files?.[0] || null)} />
                     {replyFile && (
                       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-2">

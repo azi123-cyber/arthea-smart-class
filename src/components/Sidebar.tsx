@@ -157,16 +157,16 @@ export default function Sidebar() {
         {links.slice(0, 5).map((link) => {
           const isActive = pathname === link.href;
           return (
-            <Link key={link.href} href={link.href} className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all w-16 ${isActive ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}>
+            <Link key={link.href} href={link.href} className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all w-12 ${isActive ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}>
               <div className={`mb-1 transition-transform ${isActive ? 'scale-110' : ''}`}>
                 {link.icon}
               </div>
-              <span className={`text-[10px] font-bold uppercase transition-all whitespace-nowrap overflow-hidden text-ellipsis w-full text-center ${isActive ? 'opacity-100' : 'opacity-0 h-0 hidden'}`}>{link.name}</span>
+              <span className={`text-[9px] font-bold uppercase transition-all whitespace-nowrap overflow-hidden text-ellipsis w-full text-center tracking-tighter ${isActive ? 'opacity-100 block' : 'opacity-0 hidden'}`}>{link.name.split(' ')[0]}</span>
             </Link>
           );
         })}
-        <button onClick={() => setShowBugModal(true)} className="flex flex-col items-center justify-center p-2 rounded-xl w-16 text-orange-500">
-           <Bug size={20} className="mb-1" />
+        <button onClick={logout} className="flex flex-col items-center justify-center p-2 rounded-xl w-12 text-red-500">
+           <LogOut size={20} className="mb-1" />
         </button>
       </nav>
 

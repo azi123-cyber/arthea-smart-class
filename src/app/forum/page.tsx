@@ -142,8 +142,27 @@ export default function Forum() {
     e.stopPropagation();
     if (confirm('Hapus diskusi ini selamanya?')) {
       await remove(ref(db, `forum/${topicId}`));
+      setSelectedTopic(null);
     }
   };
+
+  const handleDeleteReply = async (topicId: string, replyKey: string) => {
+    if (confirm('Hapus balasan ini?')) {
+      await remove(ref(db, `forum/${topicId}/replyList/${replyKey}`));
+    }
+  };
+
+  const fixUrl = (url?: string) => {
+    if (!url) return url;
+    // Jika URL berisi IP lama atau localhost dari env lain, ganti dengan BACKEND_URL saat ini
+    if (url.startsWith('http')) {
+       // Cari bagian /uploads/
+       const match = url.match(/\/uploads\/(.+)$/);
+       if (match) return `${BACKEND_URL}/uploads/${match[1]}`;
+    }
+    return url;
+  };
+
 
   const TopicIcon = ({ author }: { author: string }) => (
     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl border-2 border-primary/5 shadow-sm">
@@ -156,17 +175,39 @@ export default function Forum() {
   ) : null;
 
   const AttachmentPreview = ({ fileUrl, fileType, fileName }: { fileUrl?: string; fileType?: string; fileName?: string }) => {
-    if (!fileUrl) return null;
+    const [imgError, setImgError] = useState(false);
+    const fixedUrl = fixUrl(fileUrl);
+    
+    if (!fixedUrl) return null;
     if (fileType === 'image') {
-      return <img src={fileUrl} alt={fileName || 'Lampiran'} className="max-h-64 rounded-2xl border border-gray-200 dark:border-gray-700 object-cover mt-2 cursor-pointer" onClick={() => window.open(fileUrl, '_blank')} />;
+      if (imgError) {
+        return (
+          <a href={fixedUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 mt-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl w-fit hover:bg-red-100 transition-colors">
+            <Image size={14} className="text-red-500" />
+            <span className="text-xs font-bold text-red-500 truncate max-w-[200px]">{fileName || 'Foto tidak dapat ditampilkan — klik untuk buka'}</span>
+          </a>
+        );
+      }
+      return (
+        <img
+          src={fixedUrl}
+          alt={fileName || 'Lampiran'}
+          className="max-h-80 w-full md:w-auto rounded-2xl border border-gray-200 dark:border-gray-700 object-contain mt-2 cursor-pointer bg-gray-50 dark:bg-gray-800"
+          onClick={() => window.open(fixedUrl, '_blank')}
+          onError={() => setImgError(true)}
+        />
+      );
     }
     return (
-      <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 mt-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit hover:bg-primary/10 transition-colors">
+      <a href={fixedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 mt-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit hover:bg-primary/10 transition-colors">
         <Paperclip size={14} className="text-primary" />
         <span className="text-xs font-bold text-primary truncate max-w-[200px]">{fileName || 'Lihat Lampiran'}</span>
       </a>
     );
   };
+
+
 
   return (
     <div className="max-w-6xl mx-auto px-4 pt-8 pb-40 animate-fade-in">
@@ -257,10 +298,16 @@ export default function Forum() {
                           <p className="text-xs font-bold text-gray-400">Oleh <span className="text-primary-dark dark:text-primary font-black underline decoration-primary/20 underline-offset-2">{topic.authorName || topic.author}</span> • {topic.date}, {topic.time}</p>
                         </div>
                       </div>
+                      {(role === 'admin' || username === topic.author) && (
+                        <button onClick={(e) => handleDeleteTopic(e, topic.id)} className="p-3 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                           <Trash2 size={20} />
+                        </button>
+                      )}
                     </div>
                     <div className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed whitespace-pre-wrap pl-0 md:pl-16">
                       {topic.content}
                     </div>
+
                     <div className="pl-0 md:pl-16">
                       <AttachmentPreview fileUrl={topic.fileUrl} fileType={topic.fileType} fileName={topic.fileName} />
                     </div>
@@ -270,13 +317,20 @@ export default function Forum() {
                   <div className="space-y-6 pt-6 pb-28 pl-0 md:pl-16 relative">
                     <div className="absolute left-6 top-0 bottom-0 w-1 bg-gray-100 dark:bg-gray-800 hidden md:block" />
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8 relative z-10 bg-white dark:bg-[#0b141a] inline-block pr-4">Balasan ({topic.replies})</h3>
-                    {topic.replyList.map((reply: any, idx: number) => (
-                      <div key={idx} className={`flex ${reply.author === username ? 'justify-end' : 'justify-start'} animate-fade-in relative z-10`}>
-                        <div className={`max-w-[85%] p-5 rounded-3xl shadow-md border-2 transition-all duration-300 ${reply.author === username ? 'bg-primary text-white border-primary-dark rounded-tr-none hover:shadow-primary/20' : 'bg-white dark:bg-[#202c33] dark:border-[#3b4a54] border-gray-100 rounded-tl-none hover:border-primary/20'}`}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className={`text-[10px] font-black uppercase tracking-widest ${reply.author === username ? 'text-white/70' : 'text-primary'}`}>{reply.authorName || reply.author}</p>
-                            {reply.role === 'admin' && <span className="text-[8px] bg-red-500 text-white px-2 py-0.5 rounded-lg font-black tracking-tighter">STAFF</span>}
-                            {reply.role === 'teacher' && <span className="text-[8px] bg-blue-500 text-white px-2 py-0.5 rounded-lg font-black tracking-tighter">GURU</span>}
+                    {Object.entries(topic.replyList || {}).map(([replyKey, reply]: [string, any], idx: number) => (
+                      <div key={idx} className={`flex ${reply.author === username ? 'justify-end' : 'justify-start'} animate-fade-in relative z-10 group/reply`}>
+                        <div className={`max-w-[85%] p-5 rounded-3xl shadow-md border-2 transition-all duration-300 relative ${reply.author === username ? 'bg-primary text-white border-primary-dark rounded-tr-none hover:shadow-primary/20' : 'bg-white dark:bg-[#202c33] dark:border-[#3b4a54] border-gray-100 rounded-tl-none hover:border-primary/20'}`}>
+                          <div className="flex justify-between items-start gap-4 mb-2">
+                             <div>
+                                <p className={`text-[10px] font-black uppercase tracking-widest ${reply.author === username ? 'text-white/70' : 'text-primary'}`}>{reply.authorName || reply.author}</p>
+                                {reply.role === 'admin' && <span className="text-[8px] bg-red-500 text-white px-2 py-0.5 rounded-lg font-black tracking-tighter">STAFF</span>}
+                                {reply.role === 'teacher' && <span className="text-[8px] bg-blue-500 text-white px-2 py-0.5 rounded-lg font-black tracking-tighter">GURU</span>}
+                             </div>
+                             {(role === 'admin' || username === reply.author) && (
+                                <button onClick={() => handleDeleteReply(topic.id, replyKey)} className={`p-1.5 rounded-lg transition-colors ${reply.author === username ? 'hover:bg-red-600 text-white/50 hover:text-white' : 'hover:bg-red-50 text-red-500/50 hover:text-red-500'}`}>
+                                   <Trash2 size={12} />
+                                </button>
+                             )}
                           </div>
                           <p className={`text-base font-medium leading-relaxed ${reply.author === username ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>{reply.content}</p>
                           {reply.fileUrl && (
@@ -288,33 +342,35 @@ export default function Forum() {
                         </div>
                       </div>
                     ))}
+
                   </div>
 
                   {/* Reply Input Bar */}
-                  <div className="mt-12 glass rounded-3xl p-2 sticky bottom-6 z-50 shadow-2xl border-2 border-white/20 dark:border-white/5 bg-white/90 dark:bg-[#0b141a]/95 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
+                  <div className="mt-12 mx-2 md:mx-6 glass rounded-[2rem] p-3 md:p-4 sticky bottom-6 z-50 shadow-2xl border-2 border-white/20 dark:border-white/5 bg-white/95 dark:bg-[#0b141a]/95 backdrop-blur-xl">
                     <input ref={replyFileRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={e => setReplyFile(e.target.files?.[0] || null)} />
                     {replyFile && (
-                      <div className="flex items-center gap-2 px-4 py-2 mb-1">
+                      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-2">
                         <Paperclip size={14} className="text-primary" />
                         <span className="text-xs font-bold text-primary truncate flex-1">{replyFile.name}</span>
                         <button onClick={() => setReplyFile(null)} className="text-gray-400 hover:text-red-500"><XIcon size={14} /></button>
                       </div>
                     )}
-                    <div className="flex gap-2">
-                      <button onClick={() => replyFileRef.current?.click()} className="p-3 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-2xl transition-colors">
-                        <Paperclip size={20} />
+                    <div className="flex gap-3 items-center">
+                      <button onClick={() => replyFileRef.current?.click()} className="p-3 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-2xl transition-all">
+                        <Paperclip size={24} />
                       </button>
                       <input type="text" placeholder="Tulis balasan cerdas kamu..." value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && !uploadingFile && handleReply(selectedTopic)}
-                        className="flex-1 bg-white/50 dark:bg-black/20 rounded-2xl outline-none px-4 font-bold text-gray-800 dark:text-white placeholder:text-gray-400 py-3" />
-                      <button onClick={() => handleReply(selectedTopic)} disabled={uploadingFile}
-                        className="btn-primary !py-3 !px-8 flex items-center gap-2">
-                        {uploadingFile ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
-                        <span className="hidden sm:inline">Kirim</span>
+                        className="flex-1 bg-gray-50 dark:bg-black/20 rounded-[1.25rem] outline-none px-6 font-bold text-gray-800 dark:text-white placeholder:text-gray-400/60 py-4" />
+                      <button onClick={() => handleReply(selectedTopic)} disabled={uploadingFile || (!replyText && !replyFile)}
+                        className="btn-primary !py-4 !px-10 flex items-center gap-2 shadow-xl shadow-primary/20">
+                        {uploadingFile ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={20} />}
+                        <span className="hidden md:inline">Kirim</span>
                       </button>
                     </div>
                   </div>
+
                 </>
               );
             })()}

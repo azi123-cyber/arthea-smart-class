@@ -26,13 +26,22 @@ export default function CreateExam() {
   const [targetClass, setTargetClass] = useState('Semua');
   const [hasTimer, setHasTimer] = useState(false);
   const [durationMinutes, setDurationMinutes] = useState(60);
+  const [maxAttempts, setMaxAttempts] = useState(1);
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [accessToken, setAccessToken] = useState('');
+  const [tokenError, setTokenError] = useState('');
   const [enableToken, setEnableToken] = useState(false);
   const [showPembahasanNow, setShowPembahasanNow] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedExamId, setSavedExamId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Hitung jumlah kata pada token
+  const countWords = (str: string) => str.trim().split(/\s+/).filter(Boolean).length;
+
+  // Kompute nilai actual: durasi >360 = unlimited (null), attempts >5 = unlimited (0)
+  const actualDuration = hasTimer ? (durationMinutes > 360 ? null : durationMinutes) : null;
+  const actualMaxAttempts = maxAttempts > 5 ? 0 : maxAttempts; // 0 = unlimited
   const [questions, setQuestions] = useState<Question[]>([{
     id: 1, text: '', options: ['', '', '', ''], correctAnswer: 0, clue: '', pembahasan: '', showClue: false
   }]);
@@ -65,6 +74,15 @@ export default function CreateExam() {
       alert('Isi judul dan semua pertanyaan terlebih dahulu!');
       return;
     }
+    // Validasi token: harus 1-8 kata jika aktif
+    if (visibility === 'private' && enableToken && accessToken.trim()) {
+      const wordCount = countWords(accessToken);
+      if (wordCount < 1 || wordCount > 8) {
+        setTokenError('Token harus terdiri dari 1–8 kata. Lebih dari 8 kata tidak diizinkan.');
+        return;
+      }
+      setTokenError('');
+    }
     setSaving(true);
     try {
       const examData = {
@@ -72,9 +90,12 @@ export default function CreateExam() {
         subject,
         targetClass,
         hasTimer,
-        durationMinutes: hasTimer ? durationMinutes : null,
+        durationMinutes: actualDuration,
+        isUnlimitedTime: actualDuration === null && hasTimer,
+        maxAttempts: actualMaxAttempts,
+        isUnlimitedAttempts: actualMaxAttempts === 0,
         visibility,
-        accessToken: (visibility === 'private' && enableToken) ? accessToken : null,
+        accessToken: (visibility === 'private' && enableToken) ? accessToken.trim() : null,
         showPembahasanNow,
         createdBy: username,
         createdAt: Date.now(),
@@ -194,12 +215,29 @@ export default function CreateExam() {
             <button onClick={() => setHasTimer(!hasTimer)}
               className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl border-2 font-bold text-sm transition-all ${hasTimer ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-500'}`}>
               <Clock size={18} />
-              <span>{hasTimer ? `${durationMinutes} Menit` : 'Tidak Ada Batas Waktu'}</span>
+              <span>{hasTimer ? (durationMinutes > 360 ? `Unlimited (>${durationMinutes} menit)` : `${durationMinutes} Menit`) : 'Tidak Ada Batas Waktu'}</span>
             </button>
             {hasTimer && (
-              <input type="number" value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))} min={5} max={300}
-                className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-primary/20 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white" placeholder="Menit" />
+              <div className="space-y-1">
+                <input type="number" value={durationMinutes} onChange={e => setDurationMinutes(Math.max(1, Number(e.target.value)))} min={1}
+                  className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${durationMinutes > 360 ? 'border-green-400' : 'border-primary/20'}`} placeholder="Menit" />
+                <p className={`text-xs font-bold ml-1 ${durationMinutes > 360 ? 'text-green-600' : 'text-gray-400'}`}>
+                  {durationMinutes > 360 ? '✅ Lebih dari 360 menit = Unlimited (tanpa batas waktu)' : `Maksimal 360 menit. Lebih dari itu = unlimited.`}
+                </p>
+              </div>
             )}
+          </div>
+
+          {/* Max Attempts */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Maks. Pengerjaan</label>
+            <div className="space-y-1">
+              <input type="number" value={maxAttempts} onChange={e => setMaxAttempts(Math.max(1, Number(e.target.value)))} min={1}
+                className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${maxAttempts > 5 ? 'border-green-400' : 'border-gray-100 dark:border-gray-700'}`} placeholder="Jumlah percobaan" />
+              <p className={`text-xs font-bold ml-1 ${maxAttempts > 5 ? 'text-green-600' : 'text-gray-400'}`}>
+                {maxAttempts > 5 ? `✅ Lebih dari 5 = Unlimited (siswa bisa kerjakan selamanya)` : `1–5 = terbatas. Lebih dari 5 = unlimited.`}
+              </p>
+            </div>
           </div>
 
           {/* Visibility */}
@@ -218,12 +256,26 @@ export default function CreateExam() {
             {visibility === 'private' && (
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={enableToken} onChange={e => setEnableToken(e.target.checked)} className="w-4 h-4 accent-primary" />
+                  <input type="checkbox" checked={enableToken} onChange={e => { setEnableToken(e.target.checked); setTokenError(''); }} className="w-4 h-4 accent-primary" />
                   <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Gunakan Token Akses (opsional)</span>
                 </label>
                 {enableToken && (
-                  <input value={accessToken} onChange={e => setAccessToken(e.target.value)} placeholder="Masukkan token ujian..."
-                    className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3 outline-none font-mono font-bold text-gray-900 dark:text-white" />
+                  <div className="space-y-1">
+                    <input value={accessToken}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setAccessToken(v);
+                        const wc = countWords(v);
+                        if (v.trim() && wc > 8) setTokenError(`Token terlalu panjang (${wc} kata). Maksimal 8 kata.`);
+                        else setTokenError('');
+                      }}
+                      placeholder="Cth: kelas10 olimpiade"
+                      className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-xl px-4 py-3 outline-none font-mono font-bold text-gray-900 dark:text-white ${tokenError ? 'border-red-400' : 'border-amber-200 dark:border-amber-800'}`} />
+                    {tokenError
+                      ? <p className="text-xs font-bold text-red-500 ml-1">{tokenError}</p>
+                      : <p className="text-xs font-bold text-gray-400 ml-1">Maks. 8 kata. Lebih dari 8 kata = error.</p>
+                    }
+                  </div>
                 )}
               </div>
             )}

@@ -2,17 +2,20 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import StatusAnimation from '@/components/StatusAnimation';
-import { AlertTriangle, User } from 'lucide-react';
+import { AlertTriangle, User, Image } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { ref, set, get } from 'firebase/database';
+import { useAuth } from '@/context/AuthContext';
+
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 export default function PublicQuizInterface() {
   const params = useParams();
+  const { username, role } = useAuth(); // Ambil user login
   const [guestName, setGuestName] = useState("");
   const [hasStarted, setHasStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -24,6 +27,12 @@ export default function PublicQuizInterface() {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
   const [materialData, setMaterialData] = useState<any>(null);
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [ipBlocked, setIpBlocked] = useState<string | null>(null);
+
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
+  const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
+
 
   useEffect(() => {
     if (!params.id) return;
@@ -31,6 +40,16 @@ export default function PublicQuizInterface() {
     get(materialRef).then((snap) => {
       if (snap.exists()) {
         const mat = snap.val();
+        
+        // Cek apakah owner masih punya soal ini (Existence Check)
+        if (mat.uploadedBy) {
+           get(ref(db, `users/${mat.uploadedBy}`)).then(uSnap => {
+             if (!uSnap.exists()) {
+                setIsDeleted(true);
+             }
+           });
+        }
+
         setMaterialData(mat);
         try {
            let parsed = typeof mat.content === 'string' ? JSON.parse(mat.content) : mat.content;
@@ -42,39 +61,46 @@ export default function PublicQuizInterface() {
         } catch (e) {
            console.error("Gagal mengurai konten materi");
         }
+      } else {
+        setIsDeleted(true);
       }
       setLoading(false);
     });
   }, [params.id]);
 
+
   const currentQuestion = questions[currentQuestionIndex] || null;
   const selectedOption = answers[currentQuestionIndex] ?? null;
 
   const saveResults = async () => {
+    // Jika guset (tanpa login), jangan simpan ke Firebase database results/
+    if (!username) {
+       console.log("Guest exam finished. Showing results locally.");
+       return;
+    }
+
     try {
       let correctCount = 0;
       let wrongCount = 0;
 
       const detailedAnswers = questions.map((q, idx) => {
          const userOptIdx = answers[idx];
-         const userAnswerString = userOptIdx !== undefined ? q.options[userOptIdx] : "Tidak Dijawab";
          const isCorrect = userOptIdx !== undefined && (q.options[userOptIdx] === q.correctAnswer || String.fromCharCode(65 + userOptIdx) === q.correctAnswer);
-         
-         if (isCorrect) correctCount++; 
-         else wrongCount++;
+         if (isCorrect) correctCount++; else wrongCount++;
          
          return {
             question: q.text || q.question,
-            userAnswer: userAnswerString,
-            correctAnswer: q.correctAnswer || q.options[0],
+            userAnswer: userOptIdx !== undefined ? q.options[userOptIdx] : "Tidak Dijawab",
+            correctAnswer: q.correctAnswer,
             isCorrect,
-            explanation: q.explanation || "Pembahasan tidak tersedia untuk soal ini.",
+            explanation: q.explanation || "Pembahasan tidak tersedia.",
          };
       });
 
       const score = Math.round((correctCount / questions.length) * 100);
 
-      const dbRef = ref(db, `results/public_${guestName || 'Anonymous'}/${params.id}_${Date.now()}`);
+      // Simpan riwayat untuk user login
+      const dbRef = ref(db, `results/${username}/${params.id}_${Date.now()}`);
       await set(dbRef, {
         answers: detailedAnswers,
         violations,
@@ -83,28 +109,52 @@ export default function PublicQuizInterface() {
         wrongCount,
         timestamp: Date.now(),
         tryoutId: params.id,
-        guestName: guestName || 'Anonymous'
+        title: materialData?.title || "Ujian"
       });
       
-      try {
-         const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
-         const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
-         let uploadedBy = 'unknown';
-         if (materialData && materialData.uploadedBy) uploadedBy = materialData.uploadedBy;
-
-         await fetch(`${BACKEND_URL}/api/public-history`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-token': API_TOKEN },
-            body: JSON.stringify({ tryoutId: params.id, guestName: guestName || 'Anonymous', score, violations, uploadedBy })
+      // Duplikasi ke Bank Soal User B (Login Only)
+      const duplicateRef = ref(db, `materials/${params.id}_dup_${username}`);
+      const dupSnap = await get(duplicateRef);
+      if (!dupSnap.exists()) {
+         await set(duplicateRef, {
+           ...materialData,
+           id: `${params.id}_dup_${username}`,
+           uploadedBy: username,
+           createdAt: Date.now(),
+           isPrivate: true,
+           isDuplicate: true,
+           originalId: params.id
          });
-      } catch (err) {
-         console.error("Failed to append public history:", err);
       }
 
     } catch (err) {
-      console.error("Failed to save results:", err);
+      console.error("Failed to save result/duplicate:", err);
     }
   };
+
+  const handleStartExam = async () => {
+     if (!guestName.trim() && !username) return;
+     setLoading(true);
+     try {
+        const res = await fetch(`${BACKEND_URL}/api/track-ip`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ action: username ? 'exam_login' : 'exam_guest' })
+        });
+        if (!res.ok) {
+           const data = await res.json();
+           setIpBlocked(data.error || "Akses diblokir.");
+           setLoading(false);
+           return;
+        }
+        setHasStarted(true);
+     } catch (e) {
+        setHasStarted(true); // Fallback if backend down
+     } finally {
+        setLoading(false);
+     }
+  };
+
 
   useEffect(() => {
      if (questions.length > 0 && !submitted && hasStarted) {
@@ -167,32 +217,44 @@ export default function PublicQuizInterface() {
     };
   }, [submitted, hasStarted]);
 
-  if (loading) return <div className="flex justify-center py-20"><StatusAnimation type="loading" message="Memuat Ujian Publik..." /></div>;
-  if (!questions || questions.length === 0) return <div className="text-center font-bold text-red-500 py-20">Soal tidak ditemukan atau mungkin ID salah.</div>;
+  if (isDeleted) return <div className="text-center py-20"><StatusAnimation type="access_denied" message="Ujian Permanen Dihapus" subMessage="Pemilik soal telah menghapus materi ini, sehingga tidak dapat dikerjakan lagi." /></div>;
+  if (ipBlocked) return <div className="text-center py-20"><StatusAnimation type="access_denied" message="Akses Dibatasi" subMessage={ipBlocked} /></div>;
 
   if (!hasStarted) {
      return (
         <div className="min-h-[70vh] flex flex-col items-center justify-center animate-fade-in w-full max-w-md mx-auto">
-           <Card className="!p-8 w-full">
-              <h2 className="text-2xl font-black mb-4 text-center">Bergabung ke Ujian</h2>
-              <p className="text-sm text-gray-500 text-center mb-6">Masukkan nama Anda untuk mulai mengerjakan ujian ini.</p>
-              <div className="relative mb-6">
-                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                 <input 
-                   type="text" 
-                   value={guestName}
-                   onChange={(e) => setGuestName(e.target.value)}
-                   className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 outline-none focus:border-primary/30 font-bold"
-                   placeholder="Nama Lengkap"
-                 />
-              </div>
+           <Card className="!p-8 w-full border-2 border-primary/20">
+              <h2 className="text-2xl font-black mb-4 text-center">Mulai Ujian</h2>
+              {username ? (
+                 <div className="text-center mb-6 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                    <p className="text-sm font-bold text-primary">Anda masuk sebagai: {username}</p>
+                    <p className="text-[10px] text-gray-500 mt-1">Ujian ini akan otomatis tersimpan di riwayat & bank soal Anda.</p>
+                 </div>
+              ) : (
+                 <>
+                    <p className="text-sm text-gray-500 text-center mb-6">Masukkan nama Anda untuk mulai pengerjaan publik (Tanpa Riwayat).</p>
+                    <div className="relative mb-6">
+                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                       <input 
+                         type="text" 
+                         value={guestName}
+                         onChange={(e) => setGuestName(e.target.value)}
+                         className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 outline-none focus:border-primary/30 font-bold"
+                         placeholder="Nama Lengkap"
+                       />
+                    </div>
+                 </>
+              )}
               <button 
-                 onClick={() => setHasStarted(true)}
-                 disabled={!guestName.trim()}
-                 className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/25 disabled:opacity-50 transition"
-              >
-                 Mulai Kerjakan
+                 onClick={handleStartExam}
+                 disabled={!username && !guestName.trim()}
+                 className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/25 disabled:opacity-50 transition hover:scale-[1.02]"
+               >
+                 {username ? 'Mulai Ujian & Simpan' : 'Mulai Sekarang'}
               </button>
+              {!username && (
+                 <p className="text-[10px] text-gray-400 text-center mt-4">Pengerjaan tanpa login hanya dapat melihat pembahasan di akhir tanpa menyimpan bukti/riwayat.</p>
+              )}
            </Card>
         </div>
      );
@@ -202,16 +264,59 @@ export default function PublicQuizInterface() {
     if (violations >= 3) {
        return (
          <div className="min-h-[70vh] flex flex-col items-center justify-center animate-fade-in w-full max-w-2xl mx-auto">
-            <StatusAnimation type="access_denied" message="Ujian Dihentikan" subMessage="Anda didiskualifikasi karena terdeteksi melakukan pelanggaran ujian lebih dari 3 kali." />
+            <StatusAnimation type="access_denied" message="Ujian Dihentikan" subMessage="Anda didiskualifikasi karena pelanggaran berulang." />
          </div>
        );
     }
+
+    // REVIEW MODE (Direct results for guest/all)
+    const correctCount = questions.filter((q, idx) => {
+       const userOptIdx = answers[idx];
+       return userOptIdx !== undefined && (q.options[userOptIdx] === q.correctAnswer || String.fromCharCode(65 + userOptIdx) === q.correctAnswer);
+    }).length;
+    const score = Math.round((correctCount / questions.length) * 100);
+
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center animate-fade-in w-full max-w-2xl mx-auto">
-         <StatusAnimation type="success" message="Ujian Selesai!" subMessage="Jawaban Anda telah berhasil disimpan di server publik." />
+      <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto pb-20">
+         <StatusAnimation type="success" message="Selesai!" subMessage={username ? "Riwayat pengerjaan Anda telah disimpan di tab Hasil." : "Lihat pembahasan Anda di bawah ini."} />
+         
+         <Card className="!p-8 border-2 border-primary/20">
+            <h2 className="text-3xl font-black mb-6 text-center">Skor Anda: {score}</h2>
+            
+            <div className="space-y-10">
+               {questions.map((q, idx) => {
+                  const userIdx = answers[idx];
+                  const isCorrect = userIdx !== undefined && (q.options[userIdx] === q.correctAnswer || String.fromCharCode(65 + userIdx) === q.correctAnswer);
+                  return (
+                     <div key={idx} className="border-l-4 border-gray-100 dark:border-gray-800 pl-6 py-2">
+                        <div className="flex items-center gap-3 mb-2">
+                           <span className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-bold text-sm">{idx + 1}</span>
+                           {isCorrect ? <span className="text-[10px] font-black bg-green-100 text-green-600 px-2 py-0.5 rounded">BENAR</span> : <span className="text-[10px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded">SALAH</span>}
+                        </div>
+                        <p className="font-bold text-lg mb-4">{q.text || q.question}</p>
+                        <div className="space-y-2 mb-4">
+                           <p className={`p-4 rounded-xl text-sm border font-medium ${isCorrect ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                             Jawaban Anda: {userIdx !== undefined ? q.options[userIdx] : "Tidak Dijawab"}
+                           </p>
+                           {!isCorrect && <p className="p-4 rounded-xl text-sm border bg-gray-50 border-gray-200 text-gray-800 font-medium">Beban Benar: {q.correctAnswer}</p>}
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-800">
+                           <p className="text-[10px] font-black text-blue-600 uppercase mb-2 tracking-widest">Pembahasan</p>
+                           <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{q.explanation || "Tidak ada pembahasan tersedia."}</p>
+                        </div>
+                     </div>
+                  );
+               })}
+            </div>
+
+            <div className="mt-12 flex justify-center">
+               <Link href="/" className="px-10 py-4 bg-gray-900 text-white rounded-full font-bold shadow-xl hover:scale-105 transition">Kembali ke Dashboard</Link>
+            </div>
+         </Card>
       </div>
     );
   }
+
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto relative px-4 pb-20">

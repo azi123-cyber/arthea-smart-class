@@ -24,7 +24,25 @@ export default function Login() {
     }
     setIsSubmitting(true);
     setError('');
+
+    const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
+
     try {
+      // 1. Check IP Block & Track Login
+      const trackRes = await fetch(`${BACKEND_URL}/auth/login-track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      if (!trackRes.ok) {
+        const data = await trackRes.json();
+        setError(data.error || 'Akses ditolak.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Auth Logic
       const snapshot = await get(child(ref(db), `users/${username}`));
       if (snapshot.exists()) {
         const userData = snapshot.val();
@@ -45,6 +63,7 @@ export default function Login() {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden">

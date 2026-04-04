@@ -9,6 +9,89 @@ const { v4: uuidv4 } = require("uuid");
 const axios = require("axios");
 
 // ============================================================
+// OTP & IP SECURITY
+// ============================================================
+// OTP lokal di memory (tetap ada sebagai cache, tapi primary di Firebase)
+const otpStore = {}; 
+
+/**
+ * Utility: Dapatkan IP User
+ */
+function getClientIP(req) {
+  return req.headers["x-forwarded-for"] || req.connection.remoteAddress || "0.0.0.0";
+}
+
+/**
+ * Utility: Cek apakah IP diblokir (cek di Firebase)
+ */
+async function checkIPBlock(req, res, next) {
+  try {
+    const ip = getClientIP(req);
+    const ipHash = ip.replace(/\./g, "_");
+    const blockSnap = await db.ref(`blocked_ips/${ipHash}`).once("value");
+    
+    if (blockSnap.exists()) {
+      const block = blockSnap.val();
+      if (block.type === 'perm') {
+        return res.status(403).json({ error: "Akses diblokir permanen karena tindakan tidak wajar (Spam)." });
+      }
+      if (block.until && Date.now() < block.until) {
+        const resetAt = new Date(block.until).toLocaleString("id-ID");
+        return res.status(403).json({ error: `Akses diblokir sementara hingga ${resetAt}.` });
+      }
+      // Blokir sudah lewat -> hapus
+      await db.ref(`blocked_ips/${ipHash}`).remove();
+    }
+    next();
+  } catch (err) {
+    next();
+  }
+}
+
+/**
+ * Utility: Catat Tindakan User & Blokir jika Spam
+ */
+async function recordIPAction(ip, action, type = 'temp') {
+  const ipHash = ip.replace(/\./g, "_");
+  const today = new Date().toISOString().split('T')[0];
+  const statsRef = db.ref(`ip_stats/${ipHash}/${today}/${action}`);
+  
+  await statsRef.transaction((current) => (current || 0) + 1);
+  const snap = await statsRef.once("value");
+  const count = snap.val();
+
+  // Rule 1: Buat akun / OTP > 10x sehari -> Blokir sampai besok
+  if ((action === 'register' || action === 'otp') && count > 10) {
+    const tomorrow = new Date();
+    tomorrow.setHours(24, 0, 0, 0);
+    await db.ref(`blocked_ips/${ipHash}`).set({
+      type: 'temp',
+      until: tomorrow.getTime(),
+      reason: `Terlalu banyak request ${action}`
+    });
+  }
+  
+  // Rule 2: Spam Ujian Non-Login > 20x semalam -> Blokir Permanen
+  if (action === 'exam_guest' && count > 20) {
+    await db.ref(`blocked_ips/${ipHash}`).set({
+      type: 'perm',
+      reason: "Spam pengerjaan ujian tanpa login"
+    });
+  }
+
+  // Rule 3: Spam Ujian Login > 50x semalam -> Blokir 1 Hari
+  if (action === 'exam_login' && count > 50) {
+    const nextDay = Date.now() + 24 * 60 * 60 * 1000;
+    await db.ref(`blocked_ips/${ipHash}`).set({
+      type: 'temp',
+      until: nextDay,
+      reason: "Spam pengerjaan ujian (logged-in)"
+    });
+  }
+}
+
+
+// ============================================================
 // INISIALISASI FIREBASE ADMIN
 // ============================================================
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "./serviceAccountKey.json";
@@ -108,6 +191,132 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.json({ status: "healthy", uptime: process.uptime() });
 });
+
+// ------------------------------------------------------------
+// ROUTE: Kirim OTP ke Firebase (Jeda 2 Menit)
+// POST /otp/send
+// Body (JSON): { username, name, kelas, password }
+// ------------------------------------------------------------
+app.post("/otp/send", checkIPBlock, async (req, res) => {
+  try {
+    const { username, name, kelas, password } = req.body;
+    const ip = getClientIP(req);
+
+    if (!username || !name || !kelas || !password) {
+      return res.status(400).json({ error: "Data tidak lengkap" });
+    }
+
+    // Record IP action
+    await recordIPAction(ip, 'otp');
+
+    // Cek cooldown di Firebase
+    const otpRef = db.ref(`otps/${username}`);
+    const existingSnap = await otpRef.once("value");
+    
+    if (existingSnap.exists()) {
+      const lastSent = existingSnap.val().timestamp;
+      const remains = (lastSent + 2 * 60 * 1000) - Date.now();
+      if (remains > 0) {
+        const secs = Math.ceil(remains / 1000);
+        return res.status(429).json({ error: `Tunggu ${secs} detik lagi untuk meminta OTP baru.` });
+      }
+    }
+
+    // Cek apakah username sudah ada
+    const userSnap = await db.ref(`users/${username}`).once("value");
+    if (userSnap.exists()) {
+      return res.status(409).json({ error: "Username sudah digunakan" });
+    }
+
+    // Generate OTP 6 digit
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 menit
+
+    // Simpan ke Firebase dan memory cache
+    const otpData = { code: otpCode, timestamp: Date.now(), expiresAt, name, kelas, password, ip };
+    await otpRef.set(otpData);
+    otpStore[username] = otpData;
+
+    console.log(`[OTP] Created for ${username}: ${otpCode} (IP: ${ip})`);
+
+    res.json({ success: true, message: "OTP berhasil dibuat. Silakan cek di Firebase / Admin Panel." });
+  } catch (err) {
+    console.error("Error OTP send:", err.message);
+    res.status(500).json({ error: "Gagal membuat OTP", detail: err.message });
+  }
+});
+
+// ------------------------------------------------------------
+// ROUTE: Verifikasi OTP
+// POST /otp/verify
+// ------------------------------------------------------------
+app.post("/otp/verify", checkIPBlock, async (req, res) => {
+  try {
+    const { username, otp } = req.body;
+    const ip = getClientIP(req);
+
+    if (!username || !otp) return res.status(400).json({ error: "Data tidak lengkap" });
+
+    const otpRef = db.ref(`otps/${username}`);
+    const snap = await otpRef.once("value");
+    const stored = snap.val();
+
+    if (!stored) return res.status(404).json({ error: "OTP tidak ditemukan." });
+    if (Date.now() > stored.expiresAt) {
+      await otpRef.remove();
+      return res.status(410).json({ error: "OTP sudah kedaluwarsa." });
+    }
+    if (stored.code !== otp.trim()) return res.status(401).json({ error: "Kode OTP salah." });
+
+    // Akun dibuat
+    const userData = {
+      name: stored.name,
+      username,
+      password: stored.password,
+      kelas: stored.kelas,
+      role: "siswa",
+      createdAt: Date.now(),
+      isVerified: true,
+      registeredIP: ip
+    };
+
+    await db.ref(`users/${username}`).set(userData);
+    await otpRef.remove();
+    await recordIPAction(ip, 'register');
+
+    res.json({ success: true, message: "Berhasil verifikasi!", user: userData });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal verifikasi OTP" });
+  }
+});
+
+// ------------------------------------------------------------
+// ROUTE: Catat Login & Check Block
+// POST /auth/login-track
+// ------------------------------------------------------------
+app.post("/auth/login-track", checkIPBlock, async (req, res) => {
+  const { username } = req.body;
+  const ip = getClientIP(req);
+  if (username) {
+    await db.ref(`users/${username}/lastLoginIP`).set(ip);
+    await db.ref(`users/${username}/lastLoginAt`).set(Date.now());
+  }
+  await recordIPAction(ip, 'login');
+  res.json({ success: true });
+});
+
+// ------------------------------------------------------------
+// ROUTE: Track Action (Exam Start, etc)
+// POST /api/track-ip
+// ------------------------------------------------------------
+app.post("/api/track-ip", checkIPBlock, async (req, res) => {
+  const { action } = req.body; // 'exam_guest' or 'exam_login'
+  const ip = getClientIP(req);
+  if (action) await recordIPAction(ip, action);
+  res.json({ success: true });
+});
+
+
 
 // ------------------------------------------------------------
 // ROUTE: Upload file ke Pterodactyl Lokal HTTP

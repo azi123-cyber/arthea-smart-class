@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, push, set, remove } from 'firebase/database';
 import { Card } from '@/components/ui/Card';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5094';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.43.217:5094';
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
 
 export default function Forum() {

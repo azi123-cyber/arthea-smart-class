@@ -73,8 +73,10 @@ export default function PublicQuizInterface() {
   const selectedOption = answers[currentQuestionIndex] ?? null;
 
   const saveResults = async () => {
-    // Jika guset (tanpa login), jangan simpan ke Firebase database results/
-    if (!username) {
+    // Ambil username dari context atau fallback ke localStorage
+    const activeUsername = username || (typeof window !== 'undefined' ? localStorage.getItem('username') : null);
+
+    if (!activeUsername) {
        console.log("Guest exam finished. Showing results locally.");
        return;
     }
@@ -136,17 +138,17 @@ export default function PublicQuizInterface() {
       };
 
       // Simpan riwayat untuk user login
-      const dbRef = ref(db, `results/${username}/${params.id}_${Date.now()}`);
+      const dbRef = ref(db, `results/${activeUsername}/${params.id}_${Date.now()}`);
       await set(dbRef, JSON.parse(JSON.stringify(dataToSave)));
       
       // Duplikasi ke Bank Soal User B (Login Only)
-      const duplicateRef = ref(db, `materials/${params.id}_dup_${username}`);
+      const duplicateRef = ref(db, `materials/${params.id}_dup_${activeUsername}`);
       const dupSnap = await get(duplicateRef);
       if (!dupSnap.exists()) {
          const dupData = {
            ...materialData,
-           id: `${params.id}_dup_${username}`,
-           uploadedBy: username,
+           id: `${params.id}_dup_${activeUsername}`,
+           uploadedBy: activeUsername,
            createdAt: Date.now(),
            isPrivate: true,
            isDuplicate: true,

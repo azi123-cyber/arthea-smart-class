@@ -462,7 +462,7 @@ app.get("/ai/limits", requireAuth, async (req, res) => {
 // ------------------------------------------------------------
 app.post("/ai/generate", requireAuth, async (req, res) => {
   try {
-    const { uid, prompt, subMateri, modelType, difficulty, count = 5, language = "Indonesia", role = "student", imageContent, imageMimeType } = req.body;
+    const { uid, prompt, subMateri, modelType, difficulty, count = 5, language = "Indonesia", role = "student", imageContent, imageMimeType, questionTypes } = req.body;
     if (!uid || !prompt || !modelType || !difficulty) {
       return res.status(400).json({ error: "Parameter tidak lengkap" });
     }
@@ -502,29 +502,35 @@ app.post("/ai/generate", requireAuth, async (req, res) => {
     if (req.body.includeExplanation === false) expInstruction = "Isi field 'explanation' dengan string kosong \"\" karena penjelasan tidak diminta.";
 
     const maxQuestions = Math.min(parseInt(count), 20);
+    const typesStr = (questionTypes && questionTypes.length > 0) ? questionTypes.join(", ") : "Pilihan Ganda (PG)";
 
-    const systemPrompt = `Kamu adalah guru pembuat soal cerdas. Buatkan tepat ${maxQuestions} soal pilihan ganda berdasarkan perintah pengguna berikut: "${prompt}" ${subMateri ? "dengan sub-materi: " + subMateri : ""}.
-${imageContent ? "PENTING: Pengguna telah melampirkan SEBUAH GAMBAR referensi! Kamu HARUS menganalisis foto/gambar tersebut (bisa berupa soal, tabel, kode program, dsb). Semua soal yang kamu buat HARUS sangat berkaitan dengan materi atau konteks yang ada di dalam gambar referensi tersebut, bukan mengarang materi lain!" : ""}
+const systemPrompt = `Kamu adalah guru cerdas penanggung jawab pembuatan soal olimpiade. TUGAS UTAMA: Buatkan tepat ${maxQuestions} soal dengan variasi tipe: [${typesStr}] berdasarkan perintah pengguna: "${prompt}" ${subMateri ? "dengan sub-materi: " + subMateri : ""}.
+${imageContent ? "INSTRUKSI KRITIS: Pengguna melampirkan file REFERENSI! Kamu WAJIB meneliti isi file tersebut dan membuat soal yang bersumber atau terinspirasi kuat dari konten file tersebut. JANGAN membuat soal yang tidak relevan dengan referensi ini." : ""}
+
+Tipe Soal Detail:
+1. PG (Pilihan Ganda): 4 opsi (A-D), 1 jawaban benar.
+2. PGK (Pilihan Ganda Kompleks): 4-5 opsi, LEBIH DARI 1 jawaban benar. Field 'correctAnswer' HARUS berupa ARRAY string (misal: ["A", "C"]).
+3. Essay: Tanpa opsi (isi 'options' dengan array kosong []), 'correctAnswer' berupa teks kunci jawaban.
 
 Tingkat kesulitan: ${difficulty} (1 mudah, 2 sedang, 3 sulit).
 - ${clueInstruction}
 - ${expInstruction}
 
-Gunakan Bahasa ${language}. Hindari kata-kata / teks acak.
-PENTING: Rumus matematika HARUS menggunakan delimiter LaTeX ($$..$$ atau $..$).
-Output HARUS murni JSON dengan format persis seperti ini (tanpa awalan atau akhiran lain, tanpa markdown):
+Gunakan Bahasa ${language}. Rumus gunakan LaTeX ($..$).
+Output HARUS murni JSON:
 {
   "questions": [
     {
-      "question": "Isi soal disini",
-      "options": ["A. opsi 1", "B. opsi 2", "C. opsi 3", "D. opsi 4"],
-      "correctAnswer": "A",
-      "explanation": "Penjelasan detail di sini atau string kosong",
-      "clue": "Petunjuk pengerjaan atau string kosong"
+      "type": "PG atau PGK atau Essay",
+      "question": "teks soal",
+      "options": ["A. opsi1", "B. opsi2", ...],
+      "correctAnswer": "A" atau ["A", "C"] atau "teks jawaban essay",
+      "explanation": "penjelasan",
+      "clue": "petunjuk"
     }
   ]
 }
-Pastikan array "questions" berisi tepat ${maxQuestions} soal.`;
+Pastikan total ada tepat ${maxQuestions} soal.`;
 
     let generatedText = "";
 
@@ -534,6 +540,7 @@ Pastikan array "questions" berisi tepat ${maxQuestions} soal.`;
 
       const partsArr = [{ text: systemPrompt }];
       if (imageContent && imageMimeType) {
+        // Supports image/jpeg, image/png, application/pdf, etc.
         partsArr.push({
           inlineData: {
             mimeType: imageMimeType,
@@ -570,8 +577,10 @@ Pastikan array "questions" berisi tepat ${maxQuestions} soal.`;
         "https://openrouter.ai/api/v1/chat/completions",
         {
           model: model,
-          messages: [{ role: "user", content: contentArr }],
-          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: "Kamu adalah guru cerdas penanggung jawab pembuatan soal olimpiade." },
+            { role: "user", content: contentArr }
+          ],
           temperature: 0.7
         },
         { headers: { "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}` } }

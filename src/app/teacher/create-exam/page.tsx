@@ -11,9 +11,10 @@ import {
 
 interface Question {
   id: number;
+  type: 'PG' | 'PGK' | 'Essay';
   text: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer: any; // number for PG, number[] for PGK, string for Essay
   clue: string;
   pembahasan: string;
   showClue: boolean;
@@ -43,12 +44,12 @@ export default function CreateExam() {
   const actualDuration = hasTimer ? (durationMinutes > 360 ? null : durationMinutes) : null;
   const actualMaxAttempts = maxAttempts > 5 ? 0 : maxAttempts; // 0 = unlimited
   const [questions, setQuestions] = useState<Question[]>([{
-    id: 1, text: '', options: ['', '', '', ''], correctAnswer: 0, clue: '', pembahasan: '', showClue: false
+    id: 1, type: 'PG', text: '', options: ['', '', '', ''], correctAnswer: 0, clue: '', pembahasan: '', showClue: false
   }]);
 
   const addQuestion = () => {
     setQuestions(prev => [...prev, {
-      id: Date.now(), text: '', options: ['', '', '', ''], correctAnswer: 0, clue: '', pembahasan: '', showClue: false
+      id: Date.now(), type: 'PG', text: '', options: ['', '', '', ''], correctAnswer: 0, clue: '', pembahasan: '', showClue: false
     }]);
   };
 
@@ -100,9 +101,12 @@ export default function CreateExam() {
         createdBy: username,
         createdAt: Date.now(),
         questions: questions.map(q => ({
+          type: q.type,
           text: q.text,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
+          options: q.type === 'Essay' ? [] : q.options,
+          correctAnswer: q.type === 'PGK' 
+            ? (Array.isArray(q.correctAnswer) ? q.correctAnswer.map((i: number) => String.fromCharCode(65 + i)) : [])
+            : (q.type === 'PG' ? String.fromCharCode(65 + q.correctAnswer) : q.correctAnswer),
           clue: q.clue || null,
           pembahasan: q.pembahasan || null,
         }))
@@ -169,7 +173,7 @@ export default function CreateExam() {
           </div>
         )}
         <div className="flex gap-4 mt-4">
-          <button onClick={() => { setSavedExamId(null); setTitle(''); setQuestions([{id:1,text:'',options:['','','',''],correctAnswer:0,clue:'',pembahasan:'',showClue:false}]); }}
+          <button onClick={() => { setSavedExamId(null); setTitle(''); setQuestions([{id:1,type:'PG',text:'',options:['','','',''],correctAnswer:0,clue:'',pembahasan:'',showClue:false}]); }}
             className="px-8 py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-2xl font-bold hover:bg-gray-200 transition-colors">
             Buat Ujian Baru
           </button>
@@ -303,8 +307,25 @@ export default function CreateExam() {
 
         {questions.map((q, idx) => (
           <Card key={q.id} className="!p-6 border-2 border-gray-100 dark:border-gray-800">
-            <div className="flex items-start justify-between mb-4">
-              <span className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-black text-sm">{idx + 1}</span>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-black text-sm">{idx + 1}</span>
+                <select 
+                  value={q.type} 
+                  onChange={(e) => {
+                    const newType = e.target.value as any;
+                    updateQuestion(q.id, 'type', newType);
+                    if (newType === 'PGK') updateQuestion(q.id, 'correctAnswer', []);
+                    else if (newType === 'Essay') updateQuestion(q.id, 'correctAnswer', '');
+                    else updateQuestion(q.id, 'correctAnswer', 0);
+                  }}
+                  className="bg-gray-50 dark:bg-gray-800 border-none outline-none font-black text-[10px] uppercase tracking-widest text-primary px-3 py-1 rounded-lg"
+                >
+                  <option value="PG">Pilihan Ganda</option>
+                  <option value="PGK">PG Kompleks</option>
+                  <option value="Essay">Essay / Isian</option>
+                </select>
+              </div>
               <button onClick={() => removeQuestion(q.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
                 <Trash2 size={18} />
               </button>
@@ -315,19 +336,58 @@ export default function CreateExam() {
                 placeholder="Tulis pertanyaan di sini..."
                 className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/30 rounded-xl px-4 py-3 outline-none font-medium text-gray-900 dark:text-white resize-none" />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {q.options.map((opt, oi) => (
-                  <div key={oi} className="flex items-center gap-2">
-                    <button onClick={() => updateQuestion(q.id, 'correctAnswer', oi)}
-                      className={`w-8 h-8 rounded-full flex-shrink-0 border-2 flex items-center justify-center font-black text-xs transition-all ${q.correctAnswer === oi ? 'border-green-500 bg-green-500 text-white' : 'border-gray-300 dark:border-gray-600 text-gray-400'}`}>
-                      {['A','B','C','D'][oi]}
-                    </button>
-                    <input value={opt} onChange={e => updateOption(q.id, oi, e.target.value)}
-                      placeholder={`Pilihan ${['A','B','C','D'][oi]}`}
-                      className="flex-1 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl px-3 py-2 outline-none text-sm font-medium text-gray-900 dark:text-white" />
-                  </div>
-                ))}
-              </div>
+              {q.type === 'Essay' ? (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kunci Jawaban Essay</label>
+                  <textarea 
+                    value={q.correctAnswer} 
+                    onChange={e => updateQuestion(q.id, 'correctAnswer', e.target.value)}
+                    placeholder="Tulis kunci jawaban di sini..."
+                    className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl px-4 py-3 outline-none font-bold text-gray-900 dark:text-white"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {q.options.map((opt, oi) => {
+                    const isCorrect = q.type === 'PGK' 
+                      ? (Array.isArray(q.correctAnswer) && q.correctAnswer.includes(oi))
+                      : q.correctAnswer === oi;
+
+                    return (
+                      <div key={oi} className="flex items-center gap-2">
+                        <button onClick={() => {
+                          if (q.type === 'PGK') {
+                            const current = Array.isArray(q.correctAnswer) ? q.correctAnswer : [];
+                            if (current.includes(oi)) updateQuestion(q.id, 'correctAnswer', current.filter(i => i !== oi));
+                            else updateQuestion(q.id, 'correctAnswer', [...current, oi]);
+                          } else {
+                            updateQuestion(q.id, 'correctAnswer', oi);
+                          }
+                        }}
+                          className={`w-8 h-8 rounded-full flex-shrink-0 border-2 flex items-center justify-center font-black text-xs transition-all ${isCorrect ? 'border-green-500 bg-green-500 text-white' : 'border-gray-300 dark:border-gray-600 text-gray-400'}`}>
+                          {['A','B','C','D','E'][oi] || '?'}
+                        </button>
+                        <input value={opt} onChange={e => updateOption(q.id, oi, e.target.value)}
+                          placeholder={`Pilihan ${['A','B','C','D','E'][oi] || '?'}`}
+                          className="flex-1 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl px-3 py-2 outline-none text-sm font-medium text-gray-900 dark:text-white" />
+                        {q.type === 'PGK' && oi === q.options.length - 1 && q.options.length < 5 && (
+                           <button onClick={() => {
+                              const newOpts = [...q.options, ''];
+                              updateQuestion(q.id, 'options', newOpts);
+                           }} className="p-1 text-primary hover:bg-primary/10 rounded-lg"><PlusCircle size={14}/></button>
+                        )}
+                        {q.type === 'PGK' && q.options.length > 2 && (
+                           <button onClick={() => {
+                              const newOpts = q.options.filter((_, i) => i !== oi);
+                              updateQuestion(q.id, 'options', newOpts);
+                              if (Array.isArray(q.correctAnswer)) updateQuestion(q.id, 'correctAnswer', q.correctAnswer.filter(i => i !== oi));
+                           }} className="p-1 text-red-300 hover:text-red-500"><Trash2 size={14}/></button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Clue & Pembahasan */}
               <div className="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-3">

@@ -6,7 +6,7 @@ import { Sparkles, FileText, UploadCloud, Brain, Zap, Settings, Lock } from 'luc
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.43.217:5094';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
 
 export default function AIGenerator() {
@@ -27,6 +27,7 @@ export default function AIGenerator() {
   const [limits, setLimits] = useState({ Pintar: 0, Menengah: 0, Biasa: 0 });
   const [materialId, setMaterialId] = useState("");
   const [generatedQuestions, setGeneratedQuestions] = useState<any[]>([]);
+  const [questionTypes, setQuestionTypes] = useState<string[]>(['PG']);
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,8 +68,8 @@ export default function AIGenerator() {
     if (!prompt || !username) return;
     setLoading(true);
     
-    let imageContent = "";
-    let imageMimeType = "";
+    let refContent = "";
+    let refMimeType = "";
     if (selectedFile) {
        try {
          const reader = new FileReader();
@@ -76,8 +77,8 @@ export default function AIGenerator() {
            reader.onload = () => {
              const result = reader.result as string;
              const parts = result.split(',');
-             imageContent = parts[1] || "";
-             imageMimeType = selectedFile.type;
+             refContent = parts[1] || "";
+             refMimeType = selectedFile.type;
              resolve();
            };
            reader.onerror = reject;
@@ -109,8 +110,9 @@ export default function AIGenerator() {
           includeClue: includeClue,
           includeExplanation: includeExplanation,
           role: role,
-          imageContent: imageContent,
-          imageMimeType: imageMimeType
+          imageContent: refContent,
+          imageMimeType: refMimeType,
+          questionTypes: questionTypes
         })
       });
       
@@ -217,7 +219,7 @@ export default function AIGenerator() {
                     onClick={triggerFileSelect}
                     className="border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/50 cursor-pointer transition-all bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl p-5 flex flex-col items-center justify-center group text-center"
                   >
-                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.jpg,.jpeg,.png"/>
+                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,application/pdf"/>
                      <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-2xl shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-500">
                         <UploadCloud className="text-primary opacity-50 group-hover:opacity-100 transition-opacity" size={24} />
                      </div>
@@ -297,7 +299,10 @@ export default function AIGenerator() {
                       min="1"
                       max="20"
                       value={questionCount}
-                      onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setQuestionCount(isNaN(val) ? 0 : val);
+                      }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
                   </div>
@@ -306,9 +311,12 @@ export default function AIGenerator() {
                     <input 
                       type="number"
                       min="1"
-                      max="180"
+                      max="999999"
                       value={duration}
-                      onChange={(e) => setDuration(parseInt(e.target.value))}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setDuration(isNaN(val) ? 0 : val);
+                      }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
                   </div>
@@ -320,9 +328,12 @@ export default function AIGenerator() {
                     <input 
                       type="number"
                       min="1"
-                      max="10"
+                      max="999999"
                       value={maxAttempts}
-                      onChange={(e) => setMaxAttempts(parseInt(e.target.value))}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setMaxAttempts(isNaN(val) ? 0 : val);
+                      }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
                   </div>
@@ -332,9 +343,44 @@ export default function AIGenerator() {
                       type="text"
                       value={tokenUjian}
                       onChange={(e) => setTokenUjian(e.target.value)}
-                      placeholder="Kosongkan jika tidak perlu token"
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
+                  </div>
+                </div>
+
+                <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-6">
+                  <label className="block text-xs font-black text-primary uppercase tracking-widest mb-4 ml-1">Jenis Soal (Pilih minimal 1)</label>
+                  <div className="flex flex-wrap gap-4">
+                    {[
+                      { id: 'PG', label: 'Pilihan Ganda', sub: 'Satu jawaban benar' },
+                      { id: 'PGK', label: 'PG Kompleks', sub: 'Jawaban > 1 benar' },
+                      { id: 'Essay', label: 'Essay / Isian', sub: 'Teks bebas' }
+                    ].map((type) => (
+                      <label key={type.id} className={`flex-1 min-w-[140px] p-4 rounded-2xl border-2 cursor-pointer transition-all ${questionTypes.includes(type.id) ? 'border-primary bg-primary/5' : 'border-gray-100 dark:border-gray-800'}`}>
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                            checked={questionTypes.includes(type.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setQuestionTypes([...questionTypes, type.id]);
+                              } else {
+                                if (questionTypes.length > 1) {
+                                  setQuestionTypes(questionTypes.filter(t => t !== type.id));
+                                } else {
+                                  alert("Pilih minimal satu jenis soal!");
+                                }
+                              }
+                            }}
+                          />
+                          <div>
+                            <p className="font-bold text-sm text-gray-900 dark:text-white leading-none mb-1">{type.label}</p>
+                            <p className="text-[9px] text-gray-500 font-black uppercase tracking-tight">{type.sub}</p>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 </div>
 
@@ -376,9 +422,14 @@ export default function AIGenerator() {
             <div className="flex flex-col gap-6">
                {generatedQuestions.map((q, idx) => (
                   <div key={idx} className="p-6 border-2 border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-dark">
-                      <label className="font-black text-primary text-sm uppercase tracking-widest">Pertanyaan {idx + 1}</label>
+                      <div className="flex justify-between items-center mb-3">
+                        <label className="font-black text-primary text-sm uppercase tracking-widest flex items-center gap-2">
+                           Pertanyaan {idx + 1} 
+                           <span className="text-[10px] bg-primary/10 px-2 py-0.5 rounded-lg">{q.type || 'PG'}</span>
+                        </label>
+                      </div>
                       <textarea 
-                        className="w-full p-4 bg-gray-50 dark:bg-gray-800 border focus:border-primary/30 rounded-xl mt-3 font-medium min-h-[100px]" 
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-800 border focus:border-primary/30 rounded-xl font-medium min-h-[100px]" 
                         value={q.question} 
                         onChange={(e) => {
                            const newQ = [...generatedQuestions];
@@ -386,30 +437,40 @@ export default function AIGenerator() {
                            setGeneratedQuestions(newQ);
                         }}
                       />
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                         {q.options.map((opt: string, optIdx: number) => (
-                            <div key={optIdx}>
-                              <label className="text-xs font-bold text-gray-400 block mb-1">Opsi {String.fromCharCode(65 + optIdx)}</label>
-                              <input 
-                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 font-medium focus:border-primary/30" 
-                                value={opt} 
-                                onChange={(e) => {
-                                   const newQ = [...generatedQuestions];
-                                   newQ[idx].options[optIdx] = e.target.value;
-                                   setGeneratedQuestions(newQ);
-                                }}
-                              />
-                            </div>
-                         ))}
-                      </div>
+                      
+                      { (q.type === 'PG' || q.type === 'PGK') && q.options && (
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                           {q.options.map((opt: string, optIdx: number) => (
+                              <div key={optIdx}>
+                                <label className="text-xs font-bold text-gray-400 block mb-1">Opsi {String.fromCharCode(65 + optIdx)}</label>
+                                <input 
+                                  className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 font-medium focus:border-primary/30" 
+                                  value={opt} 
+                                  onChange={(e) => {
+                                     const newQ = [...generatedQuestions];
+                                     newQ[idx].options[optIdx] = e.target.value;
+                                     setGeneratedQuestions(newQ);
+                                  }}
+                                />
+                              </div>
+                           ))}
+                        </div>
+                      )}
+                      
                       <div className="mt-4">
-                         <label className="text-xs font-bold text-gray-400 block mb-1">Jawaban Benar</label>
-                         <input className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-100 dark:bg-gray-800 font-bold max-w-xs focus:border-primary/30" 
-                            value={q.correctAnswer} 
-                            placeholder="A, B, C, atau D"
+                         <label className="text-xs font-bold text-gray-400 block mb-1">
+                           {q.type === 'PGK' ? 'Jawaban Benar (Gunakan koma, misal: A,C)' : 'Jawaban Benar'}
+                         </label>
+                         <input className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-100 dark:bg-gray-800 font-bold max-w-md focus:border-primary/30" 
+                            value={Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer} 
+                            placeholder={q.type === 'PG' ? "A, B, C, atau D" : q.type === 'PGK' ? "A, C, D" : "Ketik jawaban kunci..."}
                             onChange={(e) => {
                                const newQ = [...generatedQuestions];
-                               newQ[idx].correctAnswer = e.target.value;
+                               if (q.type === 'PGK') {
+                                 newQ[idx].correctAnswer = e.target.value.split(',').map(s => s.trim());
+                               } else {
+                                 newQ[idx].correctAnswer = e.target.value;
+                               }
                                setGeneratedQuestions(newQ);
                          }} />
                       </div>

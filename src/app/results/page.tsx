@@ -5,37 +5,66 @@ import { ref, get, child } from 'firebase/database';
 import { Card } from '@/components/ui/Card';
 import StatusAnimation from '@/components/StatusAnimation';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { User as UserIcon, Calendar, Clock, BarChart4 } from 'lucide-react';
 
 export default function ResultsPage() {
+  const { role, username: currentUsername } = useAuth();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState('');
   const [selectedResult, setSelectedResult] = useState<any | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem('username');
-      if (storedUser) {
-        setUsername(storedUser);
-        fetchResults(storedUser);
+    if (currentUsername && role) {
+      fetchResults(currentUsername, role);
+    } else if (!currentUsername) {
+      // Fallback untuk localStorage jika context belum siap
+      const savedUser = localStorage.getItem('username');
+      const savedRole = localStorage.getItem('role') as any;
+      if (savedUser && savedRole) {
+        fetchResults(savedUser, savedRole);
       } else {
         setLoading(false);
       }
     }
-  }, []);
+  }, [currentUsername, role]);
 
-  const fetchResults = async (user: string) => {
+  const fetchResults = async (user: string, userRole: string) => {
     try {
       const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, `results/${user}`));
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const resultsList = Object.entries(data).map(([id, val]: [string, any]) => ({
-          id,
-          ...val,
-          date: new Date(val.timestamp).toLocaleString('id-ID')
-        })).sort((a, b) => b.timestamp - a.timestamp);
-        setResults(resultsList);
+      if (userRole === 'admin' || userRole === 'teacher') {
+        // Fetch ALL results for ALL users
+        const snapshot = await get(child(dbRef, `results`));
+        if (snapshot.exists()) {
+          const allData = snapshot.val();
+          const resultsList: any[] = [];
+          
+          Object.entries(allData).forEach(([u, userResults]: [string, any]) => {
+            Object.entries(userResults).forEach(([id, val]: [string, any]) => {
+              resultsList.push({
+                id,
+                studentUsername: u,
+                ...val,
+                date: new Date(val.timestamp).toLocaleString('id-ID')
+              });
+            });
+          });
+          
+          setResults(resultsList.sort((a, b) => b.timestamp - a.timestamp));
+        }
+      } else {
+        // Fetch ONLY current user results
+        const snapshot = await get(child(dbRef, `results/${user}`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const resultsList = Object.entries(data).map(([id, val]: [string, any]) => ({
+            id,
+            studentUsername: user,
+            ...val,
+            date: new Date(val.timestamp).toLocaleString('id-ID')
+          })).sort((a, b) => b.timestamp - a.timestamp);
+          setResults(resultsList);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -58,9 +87,23 @@ export default function ResultsPage() {
         <button onClick={() => setSelectedResult(null)} className="text-gray-500 hover:text-primary font-bold self-start mb-2 flex items-center gap-2">
           <span>&larr;</span> Kembali ke Daftar
         </button>
-        <Card className="!p-8 border-2 border-primary/20">
-          <h2 className="text-3xl font-black mb-2">Detail Pengerjaan</h2>
-          <p className="text-gray-500 mb-8 border-b pb-4">Tryout #{selectedResult.tryoutId} • {selectedResult.date}</p>
+        <Card className="!p-8 border-2 border-primary/20 bg-white dark:bg-[#111b21] shadow-2xl rounded-[2rem]">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-3xl font-black mb-1 text-gray-900 dark:text-white">Detail Pengerjaan</h2>
+              <div className="flex items-center gap-2 text-gray-500 font-bold text-sm">
+                <UserIcon size={14} className="text-primary" />
+                <span>Siswa: {selectedResult.studentUsername}</span>
+                <span className="opacity-30">•</span>
+                <Calendar size={14} className="text-primary" />
+                <span>{selectedResult.date}</span>
+              </div>
+            </div>
+            <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest">
+              Tryout #{selectedResult.tryoutId}
+            </div>
+          </div>
+          <div className="h-px bg-gray-100 dark:bg-gray-800 w-full mb-8" />
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
             <div className="bg-primary/5 dark:bg-primary/10 p-4 rounded-2xl text-center border border-primary/10 dark:border-primary/20">
@@ -128,33 +171,54 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8 animate-fade-in max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-4xl font-extrabold mb-2 text-gray-900 dark:text-white">Hasil Ujian & Pembahasan</h1>
-        <p className="text-gray-500">Lihat riwayat nilai dan penjelasan untuk setiap soal yang telah dikerjakan.</p>
+    <div className="flex flex-col gap-8 animate-fade-in max-w-5xl mx-auto px-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div>
+          <h1 className="text-4xl font-black mb-2 text-gray-900 dark:text-white tracking-tight">
+            { (role === 'teacher' || role === 'admin') ? 'Hasil Pengerjaan User' : 'Hasil Ujian & Pembahasan' }
+          </h1>
+          <p className="text-gray-500 font-medium">
+            { (role === 'teacher' || role === 'admin') ? 'Pantau progres dan hasil pengerjaan seluruh siswa Anda.' : 'Lihat riwayat nilai dan penjelasan untuk setiap soal yang telah dikerjakan.' }
+          </p>
+        </div>
+        { (role === 'teacher' || role === 'admin') && (
+           <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-2xl border border-blue-100 dark:border-blue-800 flex items-center gap-3">
+              <BarChart4 className="text-blue-600" />
+              <div>
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">Total Data</p>
+                <p className="text-xl font-black text-blue-800 dark:text-blue-300">{results.length} Pengerjaan</p>
+              </div>
+           </div>
+        )}
       </div>
 
       <div className="grid gap-6">
         {results.map((res) => (
-          <Card key={res.id} className="!p-6 hover:shadow-xl transition-shadow border-2 hover:border-primary">
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-              <div className="flex-grow">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded">Tryout #{res.tryoutId}</span>
-                  <span className="text-gray-400 text-xs font-medium">{res.date}</span>
-                </div>
-                <h3 className="text-xl font-bold mb-1">Skor Akhir: {res.score} / 100</h3>
-                <p className="text-sm text-gray-500">Pelanggaran: <span className={res.violations > 0 ? 'text-red-500 font-bold' : 'text-green-500'}>{res.violations}</span></p>
+          <Card key={res.id} className="cursor-pointer group hover:!border-primary/50 !p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all duration-300 border-2 border-transparent bg-white dark:bg-[#111b21] shadow-sm hover:shadow-xl rounded-3xl" onClick={() => setSelectedResult(res)}>
+            <div className="flex items-center gap-5 flex-grow w-full">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl group-hover:scale-110 transition-transform">
+                {res.studentUsername?.[0].toUpperCase() || 'U'}
               </div>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setSelectedResult(res)}
-                  className="px-6 py-2 bg-primary text-white rounded-full font-bold text-sm hover:scale-105 transition-transform"
-                >
-                  Lihat Detail
-                </button>
+              <div className="flex-grow min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest">Tryout #{res.tryoutId}</span>
+                  {(role === 'teacher' || role === 'admin') && (
+                    <span className="text-xs font-black text-gray-800 dark:text-gray-200 uppercase">{res.studentUsername}</span>
+                  )}
+                </div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight group-hover:text-primary transition-colors">Skor Akhir: {res.score}</h3>
+                <div className="flex items-center gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <span className="flex items-center gap-1"><Clock size={10} /> {res.date}</span>
+                  <span className="opacity-30">•</span>
+                  <span className={res.violations > 0 ? 'text-red-500' : 'text-green-500'}>{res.violations} Pelanggaran</span>
+                </div>
               </div>
             </div>
+            <button 
+              className="w-full md:w-auto px-8 py-3 bg-gray-50 dark:bg-white/5 text-gray-700 dark:text-gray-300 rounded-2xl font-black text-xs uppercase tracking-widest group-hover:bg-primary group-hover:text-white transition-all shadow-sm"
+            >
+              Lihat Detail
+            </button>
           </Card>
         ))}
       </div>

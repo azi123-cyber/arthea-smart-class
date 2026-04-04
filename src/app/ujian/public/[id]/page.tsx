@@ -20,7 +20,7 @@ export default function PublicQuizInterface() {
   const [hasStarted, setHasStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, any>>({});
   const [violations, setViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -84,14 +84,35 @@ export default function PublicQuizInterface() {
       let wrongCount = 0;
 
       const detailedAnswers = questions.map((q, idx) => {
-         const userOptIdx = answers[idx];
-         const isCorrect = userOptIdx !== undefined && (q.options[userOptIdx] === q.correctAnswer || String.fromCharCode(65 + userOptIdx) === q.correctAnswer);
+         const userAns = answers[idx];
+         let isCorrect = false;
+
+         if (q.type === 'PGK') {
+            const correctArr = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer];
+            const userArr = Array.isArray(userAns) ? userAns.map((i: number) => String.fromCharCode(65 + i)) : [];
+            isCorrect = correctArr.length === userArr.length && correctArr.every((v: string) => userArr.includes(v));
+         } else if (q.type === 'Essay') {
+            isCorrect = String(userAns || "").trim().toLowerCase() === String(q.correctAnswer || "").trim().toLowerCase();
+         } else {
+            // Default PG
+            isCorrect = userAns !== undefined && (q.options[userAns] === q.correctAnswer || String.fromCharCode(65 + userAns) === q.correctAnswer);
+         }
+
          if (isCorrect) correctCount++; else wrongCount++;
          
+         let displayUserAns = "Tidak Dijawab";
+         if (q.type === 'PGK' && Array.isArray(userAns)) {
+            displayUserAns = userAns.map(i => q.options[i]).join(", ");
+         } else if (q.type === 'Essay') {
+            displayUserAns = userAns || "Tidak Dijawab";
+         } else if (userAns !== undefined) {
+            displayUserAns = q.options[userAns];
+         }
+
          return {
             question: q.text || q.question,
-            userAnswer: userOptIdx !== undefined ? q.options[userOptIdx] : "Tidak Dijawab",
-            correctAnswer: q.correctAnswer,
+            userAnswer: displayUserAns,
+            correctAnswer: Array.isArray(q.correctAnswer) ? q.correctAnswer.join(", ") : q.correctAnswer,
             isCorrect,
             explanation: q.explanation || "Pembahasan tidak tersedia.",
          };
@@ -271,8 +292,16 @@ export default function PublicQuizInterface() {
 
     // REVIEW MODE (Direct results for guest/all)
     const correctCount = questions.filter((q, idx) => {
-       const userOptIdx = answers[idx];
-       return userOptIdx !== undefined && (q.options[userOptIdx] === q.correctAnswer || String.fromCharCode(65 + userOptIdx) === q.correctAnswer);
+       const userAns = answers[idx];
+       if (q.type === 'PGK') {
+          const correctArr = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer];
+          const userArr = Array.isArray(userAns) ? userAns.map((i: number) => String.fromCharCode(65 + i)) : [];
+          return correctArr.length === userArr.length && correctArr.every((v: string) => userArr.includes(v));
+       } else if (q.type === 'Essay') {
+          return String(userAns || "").trim().toLowerCase() === String(q.correctAnswer || "").trim().toLowerCase();
+       } else {
+          return userAns !== undefined && (q.options[userAns] === q.correctAnswer || String.fromCharCode(65 + userAns) === q.correctAnswer);
+       }
     }).length;
     const score = Math.round((correctCount / questions.length) * 100);
 
@@ -295,10 +324,16 @@ export default function PublicQuizInterface() {
                         </div>
                         <p className="font-bold text-lg mb-4">{q.text || q.question}</p>
                         <div className="space-y-2 mb-4">
-                           <p className={`p-4 rounded-xl text-sm border font-medium ${isCorrect ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-                             Jawaban Anda: {userIdx !== undefined ? q.options[userIdx] : "Tidak Dijawab"}
-                           </p>
-                           {!isCorrect && <p className="p-4 rounded-xl text-sm border bg-gray-50 border-gray-200 text-gray-800 font-medium">Beban Benar: {q.correctAnswer}</p>}
+                           <div className={`p-4 rounded-xl text-sm border font-medium ${isCorrect ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                             <p className="font-black text-[10px] uppercase mb-1 opacity-50">Jawaban Anda</p>
+                             {q.type === 'PGK' && Array.isArray(userIdx) ? userIdx.map(i => q.options[i]).join(", ") : (q.type === 'Essay' ? (userIdx || "Tidak Dijawab") : (userIdx !== undefined ? q.options[userIdx] : "Tidak Dijawab"))}
+                           </div>
+                           {!isCorrect && (
+                              <div className="p-4 rounded-xl text-sm border bg-gray-50 border-gray-200 text-gray-800 font-medium">
+                                 <p className="font-black text-[10px] uppercase mb-1 opacity-50">Kunci Jawaban</p>
+                                 {Array.isArray(q.correctAnswer) ? q.correctAnswer.join(", ") : q.correctAnswer}
+                              </div>
+                           )}
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-800">
                            <p className="text-[10px] font-black text-blue-600 uppercase mb-2 tracking-widest">Pembahasan</p>
@@ -364,22 +399,52 @@ export default function PublicQuizInterface() {
          </div>
          
          <div className="flex flex-col gap-4">
-           {currentQuestion.options.map((opt: string, idx: number) => (
-             <div 
-                key={idx} 
-                onClick={() => setAnswers({...answers, [currentQuestionIndex]: idx})}
-                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 outline-none
-                  ${selectedOption === idx ? 'border-primary bg-primary/5 shadow-md shadow-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'}`}
-             >
-                <div className={`w-8 h-8 rounded-full border-2 flex flex-shrink-0 items-center justify-center transition-colors
-                   ${selectedOption === idx ? 'border-primary bg-white dark:bg-dark' : 'border-gray-300 bg-gray-50 dark:bg-gray-800'}`}>
-                   {selectedOption === idx && <div className="w-4 h-4 bg-primary rounded-full animate-fade-in" />}
-                </div>
-                <div className={`text-lg transition-colors prose dark:prose-invert max-w-none ml-2 ${selectedOption === idx ? 'font-bold text-primary dark:text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
-                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
-                </div>
-             </div>
-           ))}
+           {currentQuestion.type === 'Essay' ? (
+              <textarea 
+                className="w-full p-6 h-40 bg-gray-50 dark:bg-gray-800 border-2 border-primary/10 rounded-2xl outline-none focus:border-primary/40 font-medium text-lg transition-all"
+                placeholder="Ketik jawaban Anda di sini..."
+                value={answers[currentQuestionIndex] || ""}
+                onChange={(e) => setAnswers({...answers, [currentQuestionIndex]: e.target.value})}
+              />
+           ) : (
+             currentQuestion.options.map((opt: string, idx: number) => {
+               const isSelected = currentQuestion.type === 'PGK' 
+                 ? (answers[currentQuestionIndex] || []).includes(idx)
+                 : answers[currentQuestionIndex] === idx;
+
+               return (
+                 <div 
+                    key={idx} 
+                    onClick={() => {
+                       if (currentQuestion.type === 'PGK') {
+                          const currentArr = answers[currentQuestionIndex] || [];
+                          if (currentArr.includes(idx)) {
+                             setAnswers({...answers, [currentQuestionIndex]: currentArr.filter((i: number) => i !== idx)});
+                          } else {
+                             setAnswers({...answers, [currentQuestionIndex]: [...currentArr, idx]});
+                          }
+                       } else {
+                          setAnswers({...answers, [currentQuestionIndex]: idx});
+                       }
+                    }}
+                    className={`p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 outline-none
+                      ${isSelected ? 'border-primary bg-primary/5 shadow-md shadow-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'}`}
+                 >
+                    <div className={`w-8 h-8 rounded-full border-2 flex flex-shrink-0 items-center justify-center transition-colors
+                       ${isSelected ? 'border-primary bg-white dark:bg-dark' : 'border-gray-300 bg-gray-50 dark:bg-gray-800'}`}>
+                       {isSelected && (
+                          currentQuestion.type === 'PGK' 
+                          ? <div className="text-primary font-black text-xs">✓</div>
+                          : <div className="w-4 h-4 bg-primary rounded-full animate-fade-in" />
+                       )}
+                    </div>
+                    <div className={`text-lg transition-colors prose dark:prose-invert max-w-none ml-2 ${isSelected ? 'font-bold text-primary dark:text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
+                    </div>
+                 </div>
+               );
+             })
+           )}
          </div>
 
          <div className="flex justify-between items-center mt-12 pt-6 border-t border-gray-100 dark:border-gray-800">

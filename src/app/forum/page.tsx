@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, push, set, remove } from 'firebase/database';
 import { Card } from '@/components/ui/Card';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.43.217:5094';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
 
 export default function Forum() {
@@ -32,7 +32,7 @@ export default function Forum() {
           id,
           ...val,
           replies: val.replyList ? Object.keys(val.replyList).length : 0,
-          replyList: val.replyList ? Object.values(val.replyList).sort((a: any, b: any) => a.timestamp - b.timestamp) : []
+          replyList: val.replyList ? Object.entries(val.replyList).map(([rId, rVal]: [string, any]) => ({ id: rId, ...rVal })).sort((a: any, b: any) => a.timestamp - b.timestamp) : []
         }));
         setTopics(list.sort((a: any, b: any) => b.timestamp - a.timestamp));
       } else {
@@ -138,17 +138,62 @@ export default function Forum() {
     setUploadingFile(false);
   };
 
+  const deleteFileFromBackend = async (fileUrl: string) => {
+    try {
+      const match = fileUrl.match(/\/uploads\/(.+)$/);
+      if (match) {
+        const fileName = match[1];
+        await fetch(`${BACKEND_URL}/upload`, {
+          method: 'DELETE',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-api-token': API_TOKEN 
+          },
+          body: JSON.stringify({ fileName }),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to delete file from backend:', err);
+    }
+  };
+
   const handleDeleteTopic = async (e: React.MouseEvent, topicId: string) => {
     e.stopPropagation();
+    const topic = topics.find(t => t.id === topicId);
     if (confirm('Hapus diskusi ini selamanya?')) {
-      await remove(ref(db, `forum/${topicId}`));
-      setSelectedTopic(null);
+      try {
+        if (topic?.fileUrl) {
+          await deleteFileFromBackend(topic.fileUrl);
+        }
+        // Juga hapus file dari balasan-balasan
+        if (topic?.replyList) {
+          for (const reply of topic.replyList) {
+            if (reply.fileUrl) await deleteFileFromBackend(reply.fileUrl);
+          }
+        }
+        await remove(ref(db, `forum/${topicId}`));
+        setSelectedTopic(null);
+        alert('Diskusi berhasil dihapus.');
+      } catch (err) {
+        alert('Gagal menghapus diskusi.');
+      }
     }
   };
 
   const handleDeleteReply = async (topicId: string, replyKey: string) => {
+    const topic = topics.find(t => t.id === topicId);
+    const reply = topic?.replyList?.find((r: any) => r.id === replyKey);
+    
     if (confirm('Hapus balasan ini?')) {
-      await remove(ref(db, `forum/${topicId}/replyList/${replyKey}`));
+      try {
+        if (reply?.fileUrl) {
+          await deleteFileFromBackend(reply.fileUrl);
+        }
+        await remove(ref(db, `forum/${topicId}/replyList/${replyKey}`));
+        alert('Balasan berhasil dihapus.');
+      } catch (err) {
+        alert('Gagal menghapus balasan.');
+      }
     }
   };
 

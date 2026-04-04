@@ -86,16 +86,19 @@ export default function PublicQuizInterface() {
       const detailedAnswers = questions.map((q, idx) => {
          const userAns = answers[idx];
          let isCorrect = false;
+         
+         // Safe check for correct answer source (AI might use 'answer' instead of 'correctAnswer')
+         const rawCorrectAns = q.correctAnswer ?? q.answer ?? "";
 
          if (q.type === 'PGK') {
-            const correctArr = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer];
+            const correctArr = Array.isArray(rawCorrectAns) ? rawCorrectAns : [String(rawCorrectAns)];
             const userArr = Array.isArray(userAns) ? userAns.map((i: number) => String.fromCharCode(65 + i)) : [];
-            isCorrect = correctArr.length === userArr.length && correctArr.every((v: string) => userArr.includes(v));
+            isCorrect = correctArr.length > 0 && correctArr.length === userArr.length && correctArr.every((v: string) => userArr.includes(v));
          } else if (q.type === 'Essay') {
-            isCorrect = String(userAns || "").trim().toLowerCase() === String(q.correctAnswer || "").trim().toLowerCase();
+            isCorrect = String(userAns || "").trim().toLowerCase() === String(rawCorrectAns || "").trim().toLowerCase();
          } else {
             // Default PG
-            isCorrect = userAns !== undefined && ((q.options || [])[userAns] === q.correctAnswer || String.fromCharCode(65 + userAns) === q.correctAnswer);
+            isCorrect = userAns !== undefined && ((q.options || [])[userAns] === rawCorrectAns || String.fromCharCode(65 + userAns) === rawCorrectAns);
          }
 
          if (isCorrect) correctCount++; else wrongCount++;
@@ -110,11 +113,11 @@ export default function PublicQuizInterface() {
          }
 
          return {
-            question: q.text || q.question,
-            userAnswer: displayUserAns,
-            correctAnswer: Array.isArray(q.correctAnswer) ? q.correctAnswer.join(", ") : q.correctAnswer,
+            question: q.text || q.question || "Pertanyaan",
+            userAnswer: displayUserAns || "Tidak Dijawab",
+            correctAnswer: Array.isArray(rawCorrectAns) ? rawCorrectAns.join(", ") : String(rawCorrectAns || "-"),
             isCorrect,
-            explanation: q.explanation || "Pembahasan tidak tersedia.",
+            explanation: q.explanation || q.pembahasan || "Pembahasan tidak tersedia.",
          };
       });
 

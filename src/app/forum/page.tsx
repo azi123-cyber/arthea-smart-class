@@ -414,7 +414,7 @@ export default function Forum() {
                   </div>
 
                   {/* Reply Input Bar */}
-                  <div className="fixed md:sticky bottom-[5.5rem] md:bottom-6 left-3 right-3 md:left-auto md:right-auto md:mt-12 md:mx-6 glass rounded-[2rem] p-3 md:p-4 z-[60] shadow-[0_-10px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-2 border-white/40 dark:border-white/10 bg-white/95 dark:bg-[#0b141a]/95 backdrop-blur-xl mb-0 transition-all">
+                  <div className="fixed md:sticky bottom-[4.5rem] md:bottom-6 left-3 right-3 md:left-auto md:right-auto md:mt-12 md:mx-6 glass rounded-[2rem] p-3 md:p-4 z-[60] shadow-[0_-10px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-2 border-white/40 dark:border-white/10 bg-white/95 dark:bg-[#0b141a]/95 backdrop-blur-xl mb-0 transition-all">
                     <input ref={replyFileRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={e => setReplyFile(e.target.files?.[0] || null)} />
                     {replyFile && (
                       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-2">
@@ -432,9 +432,9 @@ export default function Forum() {
                         onKeyPress={(e) => e.key === 'Enter' && !uploadingFile && handleReply(selectedTopic)}
                         className="flex-1 bg-gray-50 dark:bg-black/20 rounded-[1.25rem] outline-none px-6 font-bold text-gray-800 dark:text-white placeholder:text-gray-400/60 py-4" />
                       <button onClick={() => handleReply(selectedTopic)} disabled={uploadingFile || (!replyText && !replyFile)}
-                        className="bg-primary hover:bg-primary-dark text-white flex items-center justify-center flex-shrink-0 transition-all shadow-xl shadow-primary/20 w-12 h-12 rounded-full md:w-auto md:h-auto md:rounded-2xl md:!px-8 md:!py-4 md:gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {uploadingFile ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={20} className="ml-0.5 md:ml-0" />}
-                        <span className="hidden md:inline font-bold">Kirim</span>
+                        className="bg-primary hover:bg-primary-dark text-white flex items-center justify-center flex-shrink-0 transition-all shadow-xl shadow-primary/20 w-12 h-12 rounded-full md:w-auto md:h-auto md:rounded-2xl px-4 md:!px-8 md:!py-4 gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {uploadingFile ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={20} className="ml-1 md:ml-0" />}
+                        <span className="inline font-bold">Kirim</span>
                       </button>
                     </div>
                   </div>

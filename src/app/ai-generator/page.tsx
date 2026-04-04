@@ -302,8 +302,11 @@ export default function AIGenerator() {
                       max="20"
                       value={questionCount}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setQuestionCount(isNaN(val) ? 0 : val);
+                        let val = parseInt(e.target.value);
+                        if (isNaN(val)) val = 1;
+                        if (val > 20) val = 20;
+                        if (val < 1) val = 1;
+                        setQuestionCount(val);
                       }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
@@ -313,11 +316,14 @@ export default function AIGenerator() {
                     <input 
                       type="number"
                       min="1"
-                      max="999999"
+                      max="180"
                       value={duration}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setDuration(isNaN(val) ? 0 : val);
+                        let val = parseInt(e.target.value);
+                        if (isNaN(val)) val = 1;
+                        if (val > 180) val = 180;
+                        if (val < 1) val = 1;
+                        setDuration(val);
                       }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />
@@ -330,11 +336,14 @@ export default function AIGenerator() {
                     <input 
                       type="number"
                       min="1"
-                      max="999999"
+                      max="10"
                       value={maxAttempts}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setMaxAttempts(isNaN(val) ? 0 : val);
+                        let val = parseInt(e.target.value);
+                        if (isNaN(val)) val = 1;
+                        if (val > 10) val = 10;
+                        if (val < 1) val = 1;
+                        setMaxAttempts(val);
                       }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/20 rounded-xl p-4 outline-none transition-all font-bold text-gray-900 dark:text-white"
                     />

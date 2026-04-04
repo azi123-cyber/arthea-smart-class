@@ -565,12 +565,14 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
       let model = "meta-llama/llama-3.1-8b-instruct";
       if (modelType === "Menengah") model = "anthropic/claude-3-haiku";
 
-      const contentArr = [{ type: "text", text: systemPrompt }];
+      let contentPayload;
       if (imageContent && imageMimeType) {
-        contentArr.push({
-          type: "image_url",
-          image_url: { url: `data:${imageMimeType};base64,${imageContent}` }
-        });
+        contentPayload = [
+          { type: "text", text: systemPrompt },
+          { type: "image_url", image_url: { url: `data:${imageMimeType};base64,${imageContent}` } }
+        ];
+      } else {
+        contentPayload = systemPrompt;
       }
 
       const response = await axios.post(
@@ -579,11 +581,15 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
           model: model,
           messages: [
             { role: "system", content: "Kamu adalah guru cerdas penanggung jawab pembuatan soal olimpiade." },
-            { role: "user", content: contentArr }
+            { role: "user", content: contentPayload }
           ],
           temperature: 0.7
         },
-        { headers: { "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}` } }
+        { headers: { 
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "HTTP-Referer": "https://arthea-smart-class.arsyir.my.id",
+            "X-Title": "Arthea Smart Class"
+        } }
       );
       generatedText = response.data.choices[0].message.content;
     }

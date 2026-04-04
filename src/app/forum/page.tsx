@@ -385,7 +385,7 @@ export default function Forum() {
                   <div className="space-y-6 pt-6 pb-28 pl-0 md:pl-16 relative">
                     <div className="absolute left-6 top-0 bottom-0 w-1 bg-gray-100 dark:bg-gray-800 hidden md:block" />
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8 relative z-10 bg-white dark:bg-[#0b141a] inline-block pr-4">Balasan ({topic.replies})</h3>
-                    {Object.entries(topic.replyList || {}).map(([replyKey, reply]: [string, any], idx: number) => (
+                    {topic.replyList?.map((reply: any, idx: number) => (
                       <div key={idx} className={`flex ${reply.author === username ? 'justify-end' : 'justify-start'} animate-fade-in relative z-10 group/reply`}>
                         <div className={`max-w-[85%] p-5 rounded-3xl shadow-md border-2 transition-all duration-300 relative ${reply.author === username ? 'bg-primary text-white border-primary-dark rounded-tr-none hover:shadow-primary/20' : 'bg-white dark:bg-[#202c33] dark:border-[#3b4a54] border-gray-100 rounded-tl-none hover:border-primary/20'}`}>
                           <div className="flex justify-between items-start gap-4 mb-2">
@@ -395,7 +395,7 @@ export default function Forum() {
                                 {reply.role === 'teacher' && <span className="text-[8px] bg-blue-500 text-white px-2 py-0.5 rounded-lg font-black tracking-tighter">GURU</span>}
                              </div>
                              {(role === 'admin' || username === reply.author) && (
-                                <button onClick={() => handleDeleteReply(topic.id, replyKey)} className={`p-1.5 rounded-lg transition-colors ${reply.author === username ? 'hover:bg-red-600 text-white/50 hover:text-white' : 'hover:bg-red-50 text-red-500/50 hover:text-red-500'}`}>
+                                <button onClick={() => handleDeleteReply(topic.id, reply.id)} className={`p-1.5 rounded-lg transition-colors ${reply.author === username ? 'hover:bg-red-600 text-white/50 hover:text-white' : 'hover:bg-red-50 text-red-500/50 hover:text-red-500'}`}>
                                    <Trash2 size={12} />
                                 </button>
                              )}

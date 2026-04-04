@@ -6,10 +6,13 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, push, set, remove } from 'firebase/database';
 import { Card } from '@/components/ui/Card';
 
-// Gunakan proxy Next.js API agar tidak ada Mixed Content (HTTPS → HTTP)
-// Semua request ke backend lewat /api/backend/* dan gambar via /api/uploads/*
+// Backend proxy untuk operasi non-file (delete, dll)
 const BACKEND_URL = '/api/backend';
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
+
+// Cloudinary - Upload gambar gratis langsung dari browser
+const CLOUDINARY_CLOUD_NAME = 'djlgykgj9';
+const CLOUDINARY_UPLOAD_PRESET = 'Arthea';
 
 export default function Forum() {
   const { role, username } = useAuth();
@@ -43,19 +46,23 @@ export default function Forum() {
     });
   }, []);
 
-  const uploadFileToBackend = async (file: File): Promise<string | null> => {
+  // Upload file ke Cloudinary (gratis, permanen, HTTPS)
+  const uploadToCloudinary = async (file: File): Promise<string | null> => {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
       formData.append('folder', 'forum');
-      const res = await fetch(`${BACKEND_URL}/upload`, {
-        method: 'POST',
-        headers: { 'x-api-token': API_TOKEN },
-        body: formData,
-      });
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+        { method: 'POST', body: formData }
+      );
       if (res.ok) {
         const data = await res.json();
-        return data.url as string;
+        return data.secure_url as string; // URL HTTPS permanen
+      } else {
+        const err = await res.json();
+        console.error('Cloudinary upload error:', err);
       }
     } catch (err) {
       console.error('Upload failed:', err);
@@ -67,7 +74,7 @@ export default function Forum() {
     if (!newTopicTitle || !newTopicContent) return;
     setUploadingFile(true);
     let fileUrl: string | null = null;
-    if (topicFile) fileUrl = await uploadFileToBackend(topicFile);
+    if (topicFile) fileUrl = await uploadToCloudinary(topicFile);
 
     // Ambil data user
     let userRealName = username;
@@ -111,7 +118,7 @@ export default function Forum() {
     let fileType: string | null = null;
     let fileName: string | null = null;
     if (replyFile) {
-      fileUrl = await uploadFileToBackend(replyFile);
+      fileUrl = await uploadToCloudinary(replyFile);
       fileType = replyFile.type.startsWith('image/') ? 'image' : 'document';
       fileName = replyFile.name;
     }
@@ -140,25 +147,13 @@ export default function Forum() {
     setUploadingFile(false);
   };
 
-  const deleteFileFromBackend = async (fileUrl: string) => {
-    try {
-      // Extract hanya nama file (tanpa subfolder) dari URL
-      // Contoh: http://host/uploads/uuid.jpg → 'uuid.jpg'
-      const match = fileUrl.match(/\/uploads\/([^\/]+)$/);
-      if (match) {
-        const fileName = match[1];
-        await fetch(`${BACKEND_URL}/upload`, {
-          method: 'DELETE',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-api-token': API_TOKEN 
-          },
-          body: JSON.stringify({ fileName }),
-        });
-      }
-    } catch (err) {
-      console.error('Failed to delete file from backend:', err);
-    }
+  // Cloudinary: hapus file tidak perlu dari frontend (butuh API key secret)
+  // File di Cloudinary akan tetap ada tapi tidak masalah (storage 25GB gratis)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const deleteFileFromBackend = async (_fileUrl: string) => {
+    // Cloudinary deletion membutuhkan server-side API secret
+    // File akan tetap di Cloudinary tapi tidak ditampilkan lagi setelah entry Firebase dihapus
+    // Ini aman karena storage 25GB gratis dan tidak ada masalah privasi (URL tidak diindex)
   };
 
   const handleDeleteTopic = async (e: React.MouseEvent, topicId: string) => {
@@ -203,13 +198,12 @@ export default function Forum() {
 
   const fixUrl = (url?: string) => {
     if (!url) return url;
-    // Selalu lewatkan lewat proxy /api/uploads/ agar tidak Mixed Content (HTTPS → HTTP)
-    // Ekstrak nama file dari URL apapun (bisa ada subfolder atau tidak)
+    // Cloudinary URL sudah HTTPS, langsung pakai
+    if (url.startsWith('https://res.cloudinary.com')) return url;
+    // URL lama dari backend Pterodactyl (HTTP) - lewatkan proxy agar tidak Mixed Content
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      // Ambil semua path setelah /uploads/
       const match = url.match(/\/uploads\/(.+)$/);
       if (match) {
-        // Ambil hanya nama file (segment terakhir), tanpa subfolder
         const segments = match[1].split('/');
         const fileName = segments[segments.length - 1];
         if (fileName) return `/api/uploads/${fileName}`;

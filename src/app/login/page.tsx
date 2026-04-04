@@ -133,6 +133,9 @@ export default function Login() {
             Belum punya akun?{' '}
             <Link href="/register" className="text-primary font-black hover:underline underline-offset-4">Daftar Sekarang</Link>
           </p>
+          <div className="text-center mt-6">
+            <p className="text-[10px] font-black tracking-widest uppercase text-gray-300 dark:text-gray-600">by arsyir azeim</p>
+          </div>
         </div>
       </div>
     </div>

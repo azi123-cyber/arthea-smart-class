@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { User, Lock, AlertCircle, Fingerprint, MessageSquare, CheckCircle2, RefreshCw } from 'lucide-react';
+import { User, Lock, AlertCircle, Fingerprint, MessageSquare, CheckCircle2, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 const BACKEND_URL = '/api/backend';
 
@@ -178,8 +178,8 @@ export default function Register() {
                   <input type={showPass ? 'text' : 'password'} placeholder="Min. 6 karakter" value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="flex-1 bg-transparent outline-none text-gray-800 dark:text-gray-100 font-bold placeholder-gray-400/60" required />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="text-primary hover:text-primary-dark text-[10px] font-black uppercase tracking-tight">
-                    {showPass ? 'Sembunyi' : 'Lihat'}
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="text-gray-400 hover:text-primary transition-colors">
+                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>

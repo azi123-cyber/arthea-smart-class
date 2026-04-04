@@ -95,18 +95,18 @@ export default function PublicQuizInterface() {
             isCorrect = String(userAns || "").trim().toLowerCase() === String(q.correctAnswer || "").trim().toLowerCase();
          } else {
             // Default PG
-            isCorrect = userAns !== undefined && (q.options[userAns] === q.correctAnswer || String.fromCharCode(65 + userAns) === q.correctAnswer);
+            isCorrect = userAns !== undefined && ((q.options || [])[userAns] === q.correctAnswer || String.fromCharCode(65 + userAns) === q.correctAnswer);
          }
 
          if (isCorrect) correctCount++; else wrongCount++;
          
          let displayUserAns = "Tidak Dijawab";
          if (q.type === 'PGK' && Array.isArray(userAns)) {
-            displayUserAns = userAns.map(i => q.options[i]).join(", ");
+            displayUserAns = userAns.map(i => (q.options || [])[i] || String.fromCharCode(65 + i)).join(", ");
          } else if (q.type === 'Essay') {
             displayUserAns = userAns || "Tidak Dijawab";
          } else if (userAns !== undefined) {
-            displayUserAns = q.options[userAns];
+            displayUserAns = (q.options || [])[userAns] || String.fromCharCode(65 + userAns);
          }
 
          return {
@@ -280,6 +280,11 @@ export default function PublicQuizInterface() {
               {!username && (
                  <p className="text-[10px] text-gray-400 text-center mt-4">Pengerjaan tanpa login hanya dapat melihat pembahasan di akhir tanpa menyimpan bukti/riwayat.</p>
               )}
+              {!username && (
+                <div className="mt-8 text-center border-t border-gray-100 dark:border-gray-800 pt-6">
+                  <p className="text-[10px] font-black tracking-widest uppercase text-gray-300 dark:text-gray-600">by arsyir azeim</p>
+                </div>
+              )}
            </Card>
         </div>
      );
@@ -319,7 +324,16 @@ export default function PublicQuizInterface() {
             <div className="space-y-10">
                {questions.map((q, idx) => {
                   const userIdx = answers[idx];
-                  const isCorrect = userIdx !== undefined && (q.options[userIdx] === q.correctAnswer || String.fromCharCode(65 + userIdx) === q.correctAnswer);
+                  let isCorrect = false;
+                  if (q.type === 'PGK') {
+                     const correctArr = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer];
+                     const userArr = Array.isArray(userIdx) ? userIdx.map((i: number) => String.fromCharCode(65 + i)) : [];
+                     isCorrect = correctArr.length === userArr.length && correctArr.every((v: string) => userArr.includes(v));
+                  } else if (q.type === 'Essay') {
+                     isCorrect = String(userIdx || "").trim().toLowerCase() === String(q.correctAnswer || "").trim().toLowerCase();
+                  } else {
+                     isCorrect = userIdx !== undefined && ((q.options || [])[userIdx] === q.correctAnswer || String.fromCharCode(65 + userIdx) === q.correctAnswer);
+                  }
                   return (
                      <div key={idx} className="border-l-4 border-gray-100 dark:border-gray-800 pl-6 py-2">
                         <div className="flex items-center gap-3 mb-2">
@@ -330,7 +344,7 @@ export default function PublicQuizInterface() {
                         <div className="space-y-2 mb-4">
                            <div className={`p-4 rounded-xl text-sm border font-medium ${isCorrect ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
                              <p className="font-black text-[10px] uppercase mb-1 opacity-50">Jawaban Anda</p>
-                             {q.type === 'PGK' && Array.isArray(userIdx) ? userIdx.map(i => q.options[i]).join(", ") : (q.type === 'Essay' ? (userIdx || "Tidak Dijawab") : (userIdx !== undefined ? q.options[userIdx] : "Tidak Dijawab"))}
+                             {q.type === 'PGK' && Array.isArray(userIdx) ? userIdx.map(i => (q.options || [])[i] || String.fromCharCode(65 + i)).join(", ") : (q.type === 'Essay' ? (userIdx || "Tidak Dijawab") : (userIdx !== undefined ? ((q.options || [])[userIdx] || String.fromCharCode(65 + userIdx)) : "Tidak Dijawab"))}
                            </div>
                            {!isCorrect && (
                               <div className="p-4 rounded-xl text-sm border bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium">

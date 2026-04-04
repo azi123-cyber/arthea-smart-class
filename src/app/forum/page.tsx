@@ -278,7 +278,7 @@ export default function Forum() {
 
 
   return (
-    <div className="max-w-6xl mx-auto px-4 pt-8 pb-32 md:pb-40 animate-fade-in">
+    <div className="max-w-6xl mx-auto px-4 pt-8 pb-48 md:pb-40 animate-fade-in relative z-10">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
         <div className="space-y-1">
@@ -414,7 +414,7 @@ export default function Forum() {
                   </div>
 
                   {/* Reply Input Bar */}
-                  <div className="fixed md:sticky bottom-4 md:bottom-6 left-3 right-3 md:left-auto md:right-auto md:mt-12 md:mx-6 glass rounded-[2rem] p-3 md:p-4 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-2 border-white/40 dark:border-white/10 bg-white/95 dark:bg-[#0b141a]/95 backdrop-blur-xl mb-0 transition-all">
+                  <div className="fixed md:sticky bottom-[5.5rem] md:bottom-6 left-3 right-3 md:left-auto md:right-auto md:mt-12 md:mx-6 glass rounded-[2rem] p-3 md:p-4 z-[60] shadow-[0_-10px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-2 border-white/40 dark:border-white/10 bg-white/95 dark:bg-[#0b141a]/95 backdrop-blur-xl mb-0 transition-all">
                     <input ref={replyFileRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={e => setReplyFile(e.target.files?.[0] || null)} />
                     {replyFile && (
                       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-2">

@@ -382,7 +382,7 @@ export default function Forum() {
                   </Card>
 
                   {/* Replies Area */}
-                  <div className="space-y-6 pt-6 pb-28 pl-0 md:pl-16 relative">
+                  <div className="space-y-6 pt-6 pb-52 pl-0 md:pl-16 relative">
                     <div className="absolute left-6 top-0 bottom-0 w-1 bg-gray-100 dark:bg-gray-800 hidden md:block" />
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8 relative z-10 bg-white dark:bg-[#0b141a] inline-block pr-4">Balasan ({topic.replies})</h3>
                     {topic.replyList?.map((reply: any, idx: number) => (

@@ -147,7 +147,11 @@ export default function Sidebar() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-white dark:bg-[#111b21] border-t border-gray-200 dark:border-gray-800 flex justify-around items-center px-1 py-2 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
-        {links.slice(0, 5).map((link) => {
+        {[
+          ...links.slice(0, 2), // Dashboard, Forum
+          ...(role === 'admin' ? [adminLinks[0]] : role === 'teacher' ? [teacherLinks[1]] : []), // Upload (admin) / Manage (teacher)
+          ...links.slice(3, 5), // Hasil, AI Gen
+        ].map((link) => {
           const isActive = pathname === link.href;
           return (
             <Link key={link.href} href={link.href} className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all w-12 ${isActive ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}>

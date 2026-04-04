@@ -34,12 +34,7 @@ export default function AIGenerator() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Force Gemini untuk guru
-  useEffect(() => {
-    if (role === 'teacher' || role === 'admin') {
-      setModelType("Pintar");
-    }
-  }, [role]);
+  // removed Force Gemini untuk guru effect
 
   useEffect(() => {
     if (username) {
@@ -249,7 +244,7 @@ export default function AIGenerator() {
                          </div>
                       </button>
 
-                      {(role !== 'teacher' && role !== 'admin') && (
+                      {true && (
                          <>
                            <button onClick={() => setModelType("Menengah")} className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${modelType === 'Menengah' ? 'border-primary bg-primary/5' : 'border-gray-100 dark:border-gray-800'}`}>
                               <div className="flex items-center gap-3">

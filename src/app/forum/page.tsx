@@ -203,15 +203,22 @@ export default function Forum() {
 
   const fixUrl = (url?: string) => {
     if (!url) return url;
-    // Serve semua gambar via proxy /api/uploads/ (HTTPS) agar tidak Mixed Content
-    if (url.startsWith('http')) {
-       // Ambil nama file saja (flat, tanpa subfolder)
-       const match = url.match(/\/uploads\/([^\/]+)$/);
-       if (match) return `/api/uploads/${match[1]}`;
+    // Selalu lewatkan lewat proxy /api/uploads/ agar tidak Mixed Content (HTTPS → HTTP)
+    // Ekstrak nama file dari URL apapun (bisa ada subfolder atau tidak)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Ambil semua path setelah /uploads/
+      const match = url.match(/\/uploads\/(.+)$/);
+      if (match) {
+        // Ambil hanya nama file (segment terakhir), tanpa subfolder
+        const segments = match[1].split('/');
+        const fileName = segments[segments.length - 1];
+        if (fileName) return `/api/uploads/${fileName}`;
+      }
     }
-    // Jika relative path /uploads/*
+    // Jika relative path /uploads/...
     if (url.startsWith('/uploads/')) {
-      const fileName = url.replace('/uploads/', '');
+      const rest = url.replace('/uploads/', '');
+      const fileName = rest.split('/').pop();
       if (fileName) return `/api/uploads/${fileName}`;
     }
     // Sudah pakai proxy, return as-is

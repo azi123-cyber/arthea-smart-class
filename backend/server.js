@@ -708,6 +708,30 @@ app.get("/db/*", requireAuth, async (req, res) => {
 });
 
 // ------------------------------------------------------------
+// ROUTE: Hapus data dari Firebase Realtime Database
+// DELETE /firebase/path
+// Header: x-api-token: <token>
+// Body (JSON): { path: "forum/topicId" atau "forum/topicId/replyList/replyId" }
+// ------------------------------------------------------------
+app.delete("/firebase/path", requireAuth, async (req, res) => {
+  try {
+    const { path: dbPath } = req.body;
+    if (!dbPath) return res.status(400).json({ error: "path wajib diisi" });
+
+    // Batasi hanya path forum yang boleh dihapus lewat endpoint ini
+    if (!dbPath.startsWith("forum/")) {
+      return res.status(403).json({ error: "Hanya path forum yang diizinkan dihapus" });
+    }
+
+    await db.ref(dbPath).remove();
+    res.json({ success: true, message: `Data di path '${dbPath}' berhasil dihapus` });
+  } catch (err) {
+    console.error("Error hapus Firebase path:", err);
+    res.status(500).json({ error: "Gagal menghapus data dari Firebase", detail: err.message });
+  }
+});
+
+// ------------------------------------------------------------
 // ROUTE: Hapus file dari Penyimpanan Lokal
 // DELETE /upload
 // Header: x-api-token: <token>

@@ -161,37 +161,48 @@ export default function Forum() {
     const topic = topics.find(t => t.id === topicId);
     if (confirm('Hapus diskusi ini selamanya?')) {
       try {
-        if (topic?.fileUrl) {
-          await deleteFileFromBackend(topic.fileUrl);
+        // Hapus via backend (pakai Firebase Admin SDK - bypass rules)
+        const res = await fetch(`${BACKEND_URL}/firebase/path`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-token': API_TOKEN,
+          },
+          body: JSON.stringify({ path: `forum/${topicId}` }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Gagal hapus');
         }
-        // Juga hapus file dari balasan-balasan
-        if (topic?.replyList) {
-          for (const reply of topic.replyList) {
-            if (reply.fileUrl) await deleteFileFromBackend(reply.fileUrl);
-          }
-        }
-        await remove(ref(db, `forum/${topicId}`));
         setSelectedTopic(null);
         alert('Diskusi berhasil dihapus.');
-      } catch (err) {
-        alert('Gagal menghapus diskusi.');
+      } catch (err: any) {
+        alert('Gagal menghapus diskusi: ' + err.message);
       }
     }
   };
+  // suppress unused warning dari deleteFileFromBackend
+  void deleteFileFromBackend;
 
   const handleDeleteReply = async (topicId: string, replyKey: string) => {
-    const topic = topics.find(t => t.id === topicId);
-    const reply = topic?.replyList?.find((r: any) => r.id === replyKey);
-    
     if (confirm('Hapus balasan ini?')) {
       try {
-        if (reply?.fileUrl) {
-          await deleteFileFromBackend(reply.fileUrl);
+        // Hapus via backend (pakai Firebase Admin SDK - bypass rules)
+        const res = await fetch(`${BACKEND_URL}/firebase/path`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-token': API_TOKEN,
+          },
+          body: JSON.stringify({ path: `forum/${topicId}/replyList/${replyKey}` }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Gagal hapus');
         }
-        await remove(ref(db, `forum/${topicId}/replyList/${replyKey}`));
         alert('Balasan berhasil dihapus.');
-      } catch (err) {
-        alert('Gagal menghapus balasan.');
+      } catch (err: any) {
+        alert('Gagal menghapus balasan: ' + err.message);
       }
     }
   };

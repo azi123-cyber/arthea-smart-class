@@ -120,9 +120,8 @@ export default function PublicQuizInterface() {
 
       const score = Math.round((correctCount / questions.length) * 100);
 
-      // Simpan riwayat untuk user login
-      const dbRef = ref(db, `results/${username}/${params.id}_${Date.now()}`);
-      await set(dbRef, {
+      // Bersihkan data dari objek/properti bernilai undefined untuk mencegah Firebase Error (crash)
+      const dataToSave = {
         answers: detailedAnswers,
         violations,
         score,
@@ -131,13 +130,17 @@ export default function PublicQuizInterface() {
         timestamp: Date.now(),
         tryoutId: params.id,
         title: materialData?.title || "Ujian"
-      });
+      };
+
+      // Simpan riwayat untuk user login
+      const dbRef = ref(db, `results/${username}/${params.id}_${Date.now()}`);
+      await set(dbRef, JSON.parse(JSON.stringify(dataToSave)));
       
       // Duplikasi ke Bank Soal User B (Login Only)
       const duplicateRef = ref(db, `materials/${params.id}_dup_${username}`);
       const dupSnap = await get(duplicateRef);
       if (!dupSnap.exists()) {
-         await set(duplicateRef, {
+         const dupData = {
            ...materialData,
            id: `${params.id}_dup_${username}`,
            uploadedBy: username,
@@ -145,7 +148,8 @@ export default function PublicQuizInterface() {
            isPrivate: true,
            isDuplicate: true,
            originalId: params.id
-         });
+         };
+         await set(duplicateRef, JSON.parse(JSON.stringify(dupData)));
       }
 
     } catch (err) {

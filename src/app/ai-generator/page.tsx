@@ -6,7 +6,7 @@ import { Sparkles, FileText, UploadCloud, Brain, Zap, Settings, Lock } from 'luc
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://182.6.44.105:5094';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5094';
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
 
 export default function AIGenerator() {

@@ -2,7 +2,8 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
-import { ref, push, set } from 'firebase/database';
+// Firebase Client SDK push/set removed to bypass PERMISSION_DENIED errors. 
+// Uses backend proxy instead.
 import { Card } from '@/components/ui/Card';
 import {
   PlusCircle, Trash2, Save, Eye, EyeOff, Clock, Lock, Globe, Copy, CheckCircle2,
@@ -19,6 +20,10 @@ interface Question {
   pembahasan: string;
   showClue: boolean;
 }
+
+// Backend proxy configuration
+const BACKEND_URL = '/api/backend';
+const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'arthea_smart_class_2024_secure_99';
 
 export default function CreateExam() {
   const { username, role } = useAuth();
@@ -115,11 +120,25 @@ export default function CreateExam() {
       };
 
       const cleanData = JSON.parse(JSON.stringify(examData));
-      const examRef = push(ref(db, 'exams'));
-      await set(examRef, cleanData);
-      setSavedExamId(examRef.key);
-    } catch (err) {
-      alert('Gagal menyimpan ujian. Cek koneksi Firebase.');
+      
+      const res = await fetch(`${BACKEND_URL}/exams/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-token': API_TOKEN,
+        },
+        body: JSON.stringify(cleanData),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Gagal menyimpan ke server');
+      }
+
+      const result = await res.json();
+      setSavedExamId(result.key);
+    } catch (err: any) {
+      alert(`Gagal menyimpan ujian: ${err.message || 'Cek koneksi internet'}`);
       console.error(err);
     } finally {
       setSaving(false);

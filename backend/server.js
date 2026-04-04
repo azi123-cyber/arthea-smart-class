@@ -433,6 +433,33 @@ app.get("/db/*", requireAuth, async (req, res) => {
 });
 
 // ------------------------------------------------------------
+// ROUTE: Simpan Ujian Baru ke Firebase
+// POST /exams/create
+// Header: x-api-token: <token>
+// Body (JSON): { ...examData }
+// ------------------------------------------------------------
+app.post("/exams/create", requireAuth, async (req, res) => {
+  try {
+    const examData = req.body;
+    if (!examData || !examData.title) {
+      return res.status(400).json({ error: "Data ujian tidak valid atau judul kosong" });
+    }
+
+    const newRef = db.ref("exams").push();
+    await newRef.set({
+      ...examData,
+      id: newRef.key, // Simpan key di dalam data juga untuk memudahkan
+      serverTimestamp: admin.database.ServerValue.TIMESTAMP
+    });
+
+    res.json({ success: true, key: newRef.key, message: "Ujian berhasil disimpan" });
+  } catch (err) {
+    console.error("Error create exam:", err);
+    res.status(500).json({ error: "Gagal menyimpan ujian di server", detail: err.message });
+  }
+});
+
+// ------------------------------------------------------------
 // ROUTE: Ambil Limit AI User Hari Ini
 // GET /ai/limits
 // Header: x-api-token: <token>

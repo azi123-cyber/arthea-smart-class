@@ -333,9 +333,23 @@ export default function PublicQuizInterface() {
                              {q.type === 'PGK' && Array.isArray(userIdx) ? userIdx.map(i => q.options[i]).join(", ") : (q.type === 'Essay' ? (userIdx || "Tidak Dijawab") : (userIdx !== undefined ? q.options[userIdx] : "Tidak Dijawab"))}
                            </div>
                            {!isCorrect && (
-                              <div className="p-4 rounded-xl text-sm border bg-gray-50 border-gray-200 text-gray-800 font-medium">
+                              <div className="p-4 rounded-xl text-sm border bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium">
                                  <p className="font-black text-[10px] uppercase mb-1 opacity-50">Kunci Jawaban</p>
-                                 {Array.isArray(q.correctAnswer) ? q.correctAnswer.join(", ") : q.correctAnswer}
+                                 {(() => {
+                                   if (q.type === 'Essay') return q.correctAnswer;
+                                   const getOptionText = (ansLabel: string) => {
+                                      const label = ansLabel?.trim();
+                                      if (!label) return "";
+                                      const idx = label.charCodeAt(0) - 65; // A=0, B=1, dll
+                                      if (idx >= 0 && idx < q.options?.length) return q.options[idx];
+                                      const matched = q.options?.find((opt: string) => opt.startsWith(label + "."));
+                                      return matched || label;
+                                   };
+                                   if (Array.isArray(q.correctAnswer)) {
+                                      return q.correctAnswer.map((ans: string) => getOptionText(ans)).join("  ||  ");
+                                   }
+                                   return getOptionText(q.correctAnswer);
+                                 })()}
                               </div>
                            )}
                         </div>
@@ -358,7 +372,7 @@ export default function PublicQuizInterface() {
 
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto relative px-4 pb-20">
+    <div className="flex flex-col gap-4 md:gap-6 animate-fade-in max-w-4xl mx-auto relative px-3 md:px-4 pb-20 pt-4 md:pt-0">
       {/* Warning Modal Overlay */}
       {showWarning && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -393,11 +407,16 @@ export default function PublicQuizInterface() {
                </span>
                <span className="hidden md:inline">Sisa Waktu: </span>{formatTime(timeLeft)}
             </div>
-            <span className="text-xs text-gray-400 font-bold bg-gray-50 px-2 py-1 rounded">Soal {currentQuestionIndex + 1} / {questions.length}</span>
+            <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2">
+               <span className="text-xs text-gray-400 font-bold bg-gray-50 px-2 py-1 rounded">Soal {currentQuestionIndex + 1} / {questions.length}</span>
+               <span className={`text-[9px] md:text-[10px] font-black text-white px-2 py-1 rounded tracking-widest uppercase ${currentQuestion.type === 'PG' ? 'bg-blue-500' : currentQuestion.type === 'PGK' ? 'bg-purple-500' : 'bg-green-500'}`}>
+                 {currentQuestion.type}
+               </span>
+            </div>
          </div>
       </div>
 
-      <Card className="!p-8">
+      <Card className="!p-5 md:!p-8 shadow-sm">
          <div className="text-xl leading-relaxed mb-8 font-medium text-gray-800 dark:text-gray-100 prose dark:prose-invert max-w-none">
             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{currentQuestion.text || currentQuestion.question}</ReactMarkdown>
          </div>

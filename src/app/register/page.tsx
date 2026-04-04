@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { User, Lock, AlertCircle, Fingerprint, MessageSquare, CheckCircle2, RefreshCw } from 'lucide-react';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://182.6.44.105:5094';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -104,9 +104,9 @@ export default function Register() {
       });
       const data = await res.json();
       if (!res.ok) {
-         if (res.status === 429) setError(data.error);
-         else setError(data.error || 'Gagal mengirim ulang OTP.');
-         return;
+        if (res.status === 429) setError(data.error);
+        else setError(data.error || 'Gagal mengirim ulang OTP.');
+        return;
       }
       setResendCooldown(60);
       const interval = setInterval(() => {
@@ -157,7 +157,7 @@ export default function Register() {
                 <div className="group flex items-center gap-3 bg-[#f0f2f5] dark:bg-[#202c33] border-2 border-transparent focus-within:border-primary/30 rounded-2xl px-5 py-4 transition-all">
                   <select value={kelas} onChange={e => setKelas(e.target.value)}
                     className="flex-1 bg-transparent outline-none text-gray-800 dark:text-gray-100 font-bold placeholder-gray-400/60 cursor-pointer w-full">
-                    {['X','XI','XII'].map(k => <option key={k} value={k} className="text-gray-800">Kelas {k}</option>)}
+                    {['X', 'XI', 'XII'].map(k => <option key={k} value={k} className="text-gray-800">Kelas {k}</option>)}
                   </select>
                 </div>
               </div>
@@ -188,7 +188,7 @@ export default function Register() {
               <div className="flex items-start gap-3 px-4 py-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-2xl">
                 <MessageSquare size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
                 <p className="text-xs font-semibold text-green-700 dark:text-green-400">
-                  Setelah klik Daftar, kode OTP akan dibuat di panel admin/Firebase. Masukkan kode tersebut untuk menyelesaikan pendaftaran.
+                  Setelah klik Daftar, silakan hubungi admin untuk mendapatkan kode OTP pendaftaran Anda.
                 </p>
               </div>
 
@@ -209,7 +209,7 @@ export default function Register() {
                 <div>
                   <p className="text-xs font-black text-primary uppercase tracking-wider mb-0.5">OTP Tersimpan!</p>
                   <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                    Cek Panel Admin/Firebase untuk kode 6 digit. Kode berlaku <span className="font-black text-primary">10 menit</span>.
+                    Masukkan kode 6 digit yang Anda terima. Kode berlaku <span className="font-black text-primary">10 menit</span>.
                   </p>
                 </div>
               </div>

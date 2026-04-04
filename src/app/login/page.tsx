@@ -25,7 +25,7 @@ export default function Login() {
     setIsSubmitting(true);
     setError('');
 
-    const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
+    const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://182.6.44.105:5094';
 
     try {
       // 1. Check IP Block & Track Login

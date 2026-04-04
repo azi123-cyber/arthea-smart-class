@@ -30,7 +30,7 @@ export default function PublicQuizInterface() {
   const [isDeleted, setIsDeleted] = useState(false);
   const [ipBlocked, setIpBlocked] = useState<string | null>(null);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://154.12.117.59:5094';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://182.6.44.105:5094';
   const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
 
 

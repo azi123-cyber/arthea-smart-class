@@ -138,7 +138,8 @@ export default function CreateExam() {
       const result = await res.json();
       setSavedExamId(result.key);
     } catch (err: any) {
-      alert(`Gagal menyimpan ujian: ${err.message || 'Cek koneksi internet'}`);
+      const errorMsg = err.message || 'Cek koneksi internet';
+      alert(`Gagal menyimpan ujian: ${errorMsg}`);
       console.error(err);
     } finally {
       setSaving(false);

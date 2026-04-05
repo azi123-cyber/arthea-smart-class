@@ -1,7 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { ref, get, child } from 'firebase/database';
 import { Card } from '@/components/ui/Card';
 import StatusAnimation from '@/components/StatusAnimation';
 import Link from 'next/link';
@@ -33,27 +31,19 @@ export default function ResultsPage() {
 
   const fetchResults = async (user: string, userRole: string) => {
     try {
-      const dbRef = ref(db);
+      setLoading(true);
+      const isPrivileged = userRole === 'admin' || userRole === 'teacher';
       
-      let snapshot;
-      let usersSnap;
-      
-      // Prevent Permission Denied by restrictive rules for non-admins
-      if (userRole === 'admin' || userRole === 'teacher') {
-        snapshot = await get(child(dbRef, `results`));
-        usersSnap = await get(child(dbRef, `users`));
-      } else {
-        snapshot = await get(child(dbRef, `results/${user}`));
-        usersSnap = await get(child(dbRef, `users/${user}`));
-      }
-      
-      const usersData = usersSnap.exists() ? 
-        (userRole === 'admin' || userRole === 'teacher' ? usersSnap.val() : { [user]: usersSnap.val() }) 
-        : {};
+      const [resultsRes, usersRes] = await Promise.all([
+        fetch(isPrivileged ? '/api/backend/results/all' : `/api/backend/results/${user}`, { cache: 'no-store' }),
+        fetch(isPrivileged ? '/api/backend/users/all' : `/api/backend/users/all`, { cache: 'no-store' }) // Tetap butuh semua user info untuk link nama
+      ]);
 
-      if (snapshot.exists()) {
-        const rawData = snapshot.val();
-        const allData = (userRole === 'admin' || userRole === 'teacher') ? rawData : { [user]: rawData };
+      const rawData = await resultsRes.json();
+      const usersData = await usersRes.json();
+
+      if (rawData && !rawData.error) {
+        const allData = isPrivileged ? rawData : { [user]: rawData };
         
         const resultsList: any[] = [];
         const stats: any[] = [];

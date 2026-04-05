@@ -543,6 +543,46 @@ app.delete("/materials/:id", requireAuth, async (req, res) => {
   }
 });
 
+// ============================================================
+// READ RESULTS & USERS (SECURE PROXY)
+// ============================================================
+
+/**
+ * GET All Results
+ */
+app.get("/results/all", requireAuth, async (req, res) => {
+  try {
+    const snap = await db.ref("results").once("value");
+    res.json(snap.val() || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET User Results
+ */
+app.get("/results/:username", requireAuth, async (req, res) => {
+  try {
+    const snap = await db.ref(`results/${req.params.username}`).once("value");
+    res.json(snap.val() || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET All Users
+ */
+app.get("/users/all", requireAuth, async (req, res) => {
+  try {
+    const snap = await db.ref("users").once("value");
+    res.json(snap.val() || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ------------------------------------------------------------
 // ROUTE: Ambil Limit AI User Hari Ini
 // GET /ai/limits

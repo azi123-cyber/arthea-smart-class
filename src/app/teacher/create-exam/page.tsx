@@ -247,8 +247,13 @@ export default function CreateExam() {
             {hasTimer && (
               <div className="space-y-1">
                 <input type="number" 
+                  min="1"
                   value={durationMinutes} 
-                  onChange={e => setDurationMinutes(e.target.value)} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '' || parseInt(val) >= 1) setDurationMinutes(val);
+                    else setDurationMinutes('1');
+                  }} 
                   className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${numDuration > 360 ? 'border-green-400' : 'border-primary/20'}`} placeholder="Menit" />
                 <p className={`text-xs font-bold ml-1 ${numDuration > 360 ? 'text-green-600' : 'text-gray-400'}`}>
                   {numDuration > 360 ? '✅ Lebih dari 360 menit = Unlimited (tanpa batas waktu)' : `Maksimal 360 menit. Lebih dari itu = unlimited.`}
@@ -262,8 +267,13 @@ export default function CreateExam() {
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Maks. Pengerjaan</label>
             <div className="space-y-1">
               <input type="number" 
+                min="1"
                 value={maxAttempts} 
-                onChange={e => setMaxAttempts(e.target.value)} 
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === '' || parseInt(val) >= 1) setMaxAttempts(val);
+                  else setMaxAttempts('1');
+                }} 
                 className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${numAttempts > 5 ? 'border-green-400' : 'border-gray-100 dark:border-gray-700'}`} placeholder="Jumlah percobaan" />
               <p className={`text-xs font-bold ml-1 ${numAttempts > 5 ? 'text-green-600' : 'text-gray-400'}`}>
                 {numAttempts > 5 ? `✅ Lebih dari 5 = Unlimited (siswa bisa kerjakan selamanya)` : `1–5 = terbatas. Lebih dari 5 = unlimited.`}

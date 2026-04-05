@@ -445,6 +445,14 @@ app.post("/exams/create", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Data ujian tidak valid atau judul kosong" });
     }
 
+    // Validation for negative values
+    if (examData.maxAttempts !== undefined && examData.maxAttempts < 0) {
+      return res.status(400).json({ error: "Maks. pengerjaan tidak boleh negatif" });
+    }
+    if (examData.durationMinutes !== undefined && examData.durationMinutes !== null && examData.durationMinutes < 0) {
+      return res.status(400).json({ error: "Batas waktu tidak boleh negatif" });
+    }
+
     const newRef = db.ref("exams").push();
     await newRef.set({
       ...examData,

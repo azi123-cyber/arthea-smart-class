@@ -17,48 +17,51 @@ export default function TryoutList() {
   useEffect(() => {
     if (username === undefined) return;
 
-    const materialsRef = ref(db, 'materials');
-    const examsRef = ref(db, 'exams');
+    const fetchData = async () => {
+      try {
+        const [examsRes, materialsRes] = await Promise.all([
+          fetch('/api/backend/exams/list'),
+          fetch('/api/backend/materials/list')
+        ]);
 
-    const handleData = (snapshot: any, isExams = false) => {
-      const data = snapshot.val();
-      if (!data) return [];
-      return Object.entries(data)
-        .filter(([id, val]: [string, any]) =>
-          isExams || ((val.type === 'soal' || val.type === 'tryout') && 
-          (!val.isPrivate || val.uploadedBy === username))
-        )
-        .map(([id, val]: [string, any]) => ({
-          id,
-          ...val,
-          title: val.title,
-          subject: val.subject || (isExams ? 'Ujian Guru' : 'AI Gen'),
-          duration: val.durationMinutes || val.duration || 'Fleksibel',
-          date: isExams ? 'Ujian Guru' : 'AI / Soal Tersedia',
-          isExam: isExams
-        }));
+        const examsData = await examsRes.json();
+        const materialsData = await materialsRes.json();
+
+        const handleData = (data: any, isExams = false) => {
+          if (!data || data.error) return [];
+          return Object.entries(data)
+            .filter(([id, val]: [string, any]) =>
+              isExams || ((val.type === 'soal' || val.type === 'tryout') && 
+              (!val.isPrivate || val.uploadedBy === username))
+            )
+            .map(([id, val]: [string, any]) => ({
+              id,
+              ...val,
+              title: val.title,
+              subject: val.subject || (isExams ? 'Ujian Guru' : 'AI Gen'),
+              duration: val.durationMinutes || val.duration || 'Fleksibel',
+              date: isExams ? 'Ujian Guru' : 'AI / Soal Tersedia',
+              isExam: isExams
+            }));
+        };
+
+        const exams = handleData(examsData, true);
+        const materials = handleData(materialsData, false);
+
+        setTryouts([
+          ...exams,
+          ...materials,
+          { id: 1, title: 'Try Out Nasional #5', subject: 'Campuran', duration: '120 Menit', date: 'Aktif' },
+          { id: 2, title: 'Simulasi UTBK: Penalaran Umum', subject: 'Logika', duration: '90 Menit', date: 'Berakhir Besok' },
+          { id: 3, title: 'Quiz Harian Aljabar', subject: 'Matematika Dasar', duration: '30 Menit', date: 'Tersedia' }
+        ].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
+
+      } catch (err) {
+        console.error("Error fetching exams through proxy:", err);
+      }
     };
 
-    const unsubscribeMaterials = onValue(materialsRef, (snapshot) => {
-      const materials = handleData(snapshot, false);
-      setTryouts(prev => {
-        const otherThanMaterials = prev.filter(p => p.isExam || p.id === 1 || p.id === 2 || p.id === 3);
-        return [...materials, ...otherThanMaterials].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      });
-    });
-
-    const unsubscribeExams = onValue(examsRef, (snapshot) => {
-      const exams = handleData(snapshot, true);
-      setTryouts(prev => {
-        const otherThanExams = prev.filter(p => !p.isExam || p.id === 1 || p.id === 2 || p.id === 3);
-        return [...exams, ...otherThanExams].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      });
-    });
-
-    return () => {
-      unsubscribeMaterials();
-      unsubscribeExams();
-    };
+    fetchData();
   }, [username]);
 
   return (

@@ -40,14 +40,14 @@ export default function PublicQuizInterface() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Coba branch exams (Manual) baru fallback ke materials (AI)
-        let snap = await get(ref(db, `exams/${params.id}`));
-        if (!snap.exists()) {
-          snap = await get(ref(db, `materials/${params.id}`));
+        // Coba fetch dari proxy backend untuk bypass permission denied
+        let res = await fetch(`${BACKEND_URL}/exams/${params.id}`);
+        if (!res.ok) {
+           res = await fetch(`${BACKEND_URL}/materials/${params.id}`);
         }
 
-        if (snap.exists()) {
-          const data = snap.val();
+        if (res.ok) {
+          const data = await res.json();
           setMaterialData(data);
           
           let qList = [];
@@ -72,7 +72,7 @@ export default function PublicQuizInterface() {
           setIsDeleted(true);
         }
       } catch (err) {
-        console.error("Error loading exam:", err);
+        console.error("Error loading exam via proxy:", err);
       } finally {
         setLoading(false);
       }

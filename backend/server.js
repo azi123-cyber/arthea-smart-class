@@ -454,8 +454,64 @@ app.post("/exams/create", requireAuth, async (req, res) => {
 
     res.json({ success: true, key: newRef.key, message: "Ujian berhasil disimpan" });
   } catch (err) {
-    console.error("Error create exam:", err);
-    res.status(500).json({ error: "Gagal menyimpan ujian di server", detail: err.message });
+    console.error("Error creating exam:", err);
+    res.status(500).json({ error: "Gagal menyimpan ujian di server" });
+  }
+});
+
+// ============================================================
+// READ EXAMS (PUBLIC PROXY)
+// ============================================================
+
+/**
+ * GET List of Exams (Public)
+ */
+app.get("/exams/list", async (req, res) => {
+  try {
+    const snap = await db.ref("exams").once("value");
+    const data = snap.val() || {};
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET List of Materials (Public)
+ */
+app.get("/materials/list", async (req, res) => {
+  try {
+    const snap = await db.ref("materials").once("value");
+    const data = snap.val() || {};
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET Single Exam
+ */
+app.get("/exams/:id", async (req, res) => {
+  try {
+    const snap = await db.ref(`exams/${req.params.id}`).once("value");
+    if (!snap.exists()) return res.status(404).json({ error: "Ujian tidak ditemukan" });
+    res.json(snap.val());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET Single Material
+ */
+app.get("/materials/:id", async (req, res) => {
+  try {
+    const snap = await db.ref(`materials/${req.params.id}`).once("value");
+    if (!snap.exists()) return res.status(404).json({ error: "Materi tidak ditemukan" });
+    res.json(snap.val());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

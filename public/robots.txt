@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://arthea-smart-class.arsyir.my.id/sitemap.xml

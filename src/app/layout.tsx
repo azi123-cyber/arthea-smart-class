@@ -8,8 +8,26 @@ import { AuthProvider } from '@/context/AuthContext'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'Arthea Smart Class',
-  description: 'Platform belajar cerdas berbasis AI untuk menyiapkan generasi terbaik Indonesia.',
+  title: 'Arthea Smart Class | Platform Belajar Cerdas AI',
+  description: 'Arthea Smart Class adalah platform belajar cerdas berbasis AI untuk menyiapkan generasi terbaik Indonesia dalam menghadapi OSN dan ujian kompetitif lainnya.',
+  keywords: ['arthea', 'smart class', 'belajar ai', 'persiapan osn', 'tryout online', 'pendidikan indonesia'],
+  authors: [{ name: 'Arsyir Dev' }],
+  metadataBase: new URL('https://arthea-smart-class.arsyir.my.id'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'Arthea Smart Class',
+    description: 'Platform belajar cerdas berbasis AI untuk generasi terbaik Indonesia.',
+    url: 'https://arthea-smart-class.arsyir.my.id',
+    siteName: 'Arthea Smart Class',
+    locale: 'id_ID',
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({

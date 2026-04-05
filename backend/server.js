@@ -467,6 +467,76 @@ app.post("/exams/create", requireAuth, async (req, res) => {
   }
 });
 
+// ------------------------------------------------------------
+// ROUTE: Update Ujian (Ownership Restricted)
+// POST /exams/update
+// Header: x-api-token: <token>
+// Body (JSON): { id, updates, username }
+// ------------------------------------------------------------
+app.post("/exams/update", requireAuth, async (req, res) => {
+  try {
+    const { id, updates, username: reqUsername } = req.body;
+    if (!id || !updates || !reqUsername) {
+      return res.status(400).json({ error: "id, updates, dan username wajib diisi" });
+    }
+
+    const ref = db.ref(`exams/${id}`);
+    const snap = await ref.once("value");
+    if (!snap.exists()) return res.status(404).json({ error: "Ujian tidak ditemukan" });
+
+    const data = snap.val();
+    const owner = data.uploadedBy || data.createdBy;
+
+    if (owner !== reqUsername) {
+      const userSnap = await db.ref(`users/${reqUsername}/role`).once("value");
+      if (userSnap.val() !== 'admin') {
+        return res.status(403).json({ error: "Izin ditolak: Anda bukan pemilik ujian ini." });
+      }
+    }
+
+    await ref.update(updates);
+    res.json({ success: true, message: "Ujian berhasil diperbarui" });
+  } catch (err) {
+    console.error("Error updating exam:", err);
+    res.status(500).json({ error: "Gagal memperbarui ujian", detail: err.message });
+  }
+});
+
+// ------------------------------------------------------------
+// ROUTE: Update Materi/Soal AI (Ownership Restricted)
+// POST /materials/update
+// Header: x-api-token: <token>
+// Body (JSON): { id, updates, username }
+// ------------------------------------------------------------
+app.post("/materials/update", requireAuth, async (req, res) => {
+  try {
+    const { id, updates, username: reqUsername } = req.body;
+    if (!id || !updates || !reqUsername) {
+      return res.status(400).json({ error: "id, updates, dan username wajib diisi" });
+    }
+
+    const ref = db.ref(`materials/${id}`);
+    const snap = await ref.once("value");
+    if (!snap.exists()) return res.status(404).json({ error: "Materi tidak ditemukan" });
+
+    const data = snap.val();
+    const owner = data.uploadedBy || data.createdBy;
+
+    if (owner !== reqUsername) {
+      const userSnap = await db.ref(`users/${reqUsername}/role`).once("value");
+      if (userSnap.val() !== 'admin') {
+        return res.status(403).json({ error: "Izin ditolak: Anda bukan pemilik materi ini." });
+      }
+    }
+
+    await ref.update(updates);
+    res.json({ success: true, message: "Materi berhasil diperbarui" });
+  } catch (err) {
+    console.error("Error updating material:", err);
+    res.status(500).json({ error: "Gagal memperbarui materi", detail: err.message });
+  }
+});
+
 // ============================================================
 // READ EXAMS (PUBLIC PROXY)
 // ============================================================

@@ -29,6 +29,9 @@ export default function PublicQuizInterface() {
   const [materialData, setMaterialData] = useState<any>(null);
   const [isDeleted, setIsDeleted] = useState(false);
   const [ipBlocked, setIpBlocked] = useState<string | null>(null);
+  const [showClue, setShowClue] = useState<Record<number, boolean>>({});
+  const [editingPembahasan, setEditingPembahasan] = useState<{idx: number, text: string} | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   const BACKEND_URL = '/api/backend';
   const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
@@ -196,6 +199,59 @@ export default function PublicQuizInterface() {
      } finally {
         setLoading(false);
      }
+  };
+
+  const handleSavePembahasan = async () => {
+    if (!editingPembahasan || !materialData) return;
+    setUpdating(true);
+    try {
+      let type = 'exams';
+      let res = await fetch(`${BACKEND_URL}/exams/${params.id}`);
+      if (!res.ok) {
+        res = await fetch(`${BACKEND_URL}/materials/${params.id}`);
+        type = 'materials';
+      }
+      if (!res.ok) throw new Error("Gagal mengambil data master soal");
+      
+      const masterData = await res.json();
+      let qList = [];
+      if (masterData.questions) {
+        qList = typeof masterData.questions === 'string' ? JSON.parse(masterData.questions) : masterData.questions;
+      } else if (masterData.content) {
+        const content = typeof masterData.content === 'string' ? JSON.parse(masterData.content) : masterData.content;
+        qList = content.questions || content;
+      }
+
+      if (qList[editingPembahasan.idx]) {
+        qList[editingPembahasan.idx].pembahasan = editingPembahasan.text;
+        qList[editingPembahasan.idx].explanation = editingPembahasan.text;
+      }
+
+      const updateRes = await fetch(`${BACKEND_URL}/${type}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: params.id,
+          username: username,
+          updates: {
+            [type === 'exams' ? 'questions' : 'content']: JSON.stringify(qList)
+          }
+        })
+      });
+
+      if (!updateRes.ok) throw new Error("Gagal memperbarui pembahasan di server");
+      
+      alert("Pembahasan berhasil diperbarui!");
+      const newQs = [...questions];
+      newQs[editingPembahasan.idx].pembahasan = editingPembahasan.text;
+      newQs[editingPembahasan.idx].explanation = editingPembahasan.text;
+      setQuestions(newQs);
+      setEditingPembahasan(null);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
   };
 
 
@@ -385,8 +441,37 @@ export default function PublicQuizInterface() {
                            )}
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-800">
-                           <p className="text-[10px] font-black text-blue-600 uppercase mb-2 tracking-widest">Pembahasan</p>
-                           <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{q.pembahasan || q.explanation || "Tidak ada pembahasan tersedia."}</p>
+                           <div className="flex justify-between items-center mb-2">
+                             <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Pembahasan</p>
+                             {(role === 'teacher' || role === 'admin') && !editingPembahasan && (
+                               <button 
+                                 onClick={() => setEditingPembahasan({idx, text: q.pembahasan || q.explanation || ''})}
+                                 className="text-[10px] font-black text-blue-700 bg-blue-100 px-2 py-0.5 rounded-lg hover:bg-blue-200 transition-colors"
+                               >
+                                 EDIT PEMBAHASAN
+                               </button>
+                             )}
+                           </div>
+                           {editingPembahasan?.idx === idx ? (
+                             <div className="space-y-3">
+                               <textarea 
+                                 value={editingPembahasan.text}
+                                 onChange={(e) => setEditingPembahasan({...editingPembahasan, text: e.target.value})}
+                                 className="w-full bg-white dark:bg-gray-800 border-2 border-blue-200 rounded-xl p-3 text-sm outline-none focus:border-blue-400 min-h-[80px]"
+                                 placeholder="Tulis pembahasan..."
+                               />
+                               <div className="flex gap-2">
+                                 <button onClick={handleSavePembahasan} disabled={updating} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                                   {updating ? 'Menyimpan...' : 'Simpan'}
+                                 </button>
+                                 <button onClick={() => setEditingPembahasan(null)} className="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300">
+                                   Batal
+                                 </button>
+                               </div>
+                             </div>
+                           ) : (
+                             <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{q.pembahasan || q.explanation || "Tidak ada pembahasan tersedia."}</p>
+                           )}
                         </div>
                      </div>
                   );
@@ -513,6 +598,24 @@ export default function PublicQuizInterface() {
              })
            )}
          </div>
+         
+         {currentQuestion.clue && (
+           <div className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-6">
+             {!showClue[currentQuestionIndex] ? (
+               <button 
+                 onClick={() => setShowClue({...showClue, [currentQuestionIndex]: true})}
+                 className="px-6 py-2 bg-yellow-50 text-yellow-600 font-bold rounded-xl border border-yellow-100 hover:bg-yellow-100 transition-colors text-sm flex items-center gap-2"
+               >
+                 💡 Butuh Bantuan? Lihat Clue
+               </button>
+             ) : (
+               <div className="animate-fade-in bg-yellow-50 dark:bg-yellow-900/10 p-5 rounded-2xl border border-yellow-200 dark:border-yellow-900/30 font-medium text-yellow-800 dark:text-yellow-400">
+                 <div className="flex items-center gap-2 mb-2 font-bold uppercase tracking-widest text-xs">💡 Clue AI</div>
+                 <div className="prose dark:prose-invert max-w-none text-sm"><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{currentQuestion.clue}</ReactMarkdown></div>
+               </div>
+             )}
+           </div>
+         )}
 
          <div className="flex justify-between items-center mt-12 pt-6 border-t border-gray-100 dark:border-gray-800">
             <button 

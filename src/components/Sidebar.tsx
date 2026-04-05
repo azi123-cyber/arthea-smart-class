@@ -148,6 +148,7 @@ export default function Sidebar() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-white dark:bg-[#111b21] border-t border-gray-200 dark:border-gray-800 flex justify-around items-center px-1 py-2 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
         {[
           ...links.slice(0, 2), // Dashboard, Forum
+          links[2], // Bank Soal
           ...(role === 'admin' ? [adminLinks[0]] : role === 'teacher' ? [teacherLinks[0]] : []), // Upload (admin) / Buat (teacher)
           ...links.slice(3, 5), // Hasil, AI Gen
         ].map((link) => {

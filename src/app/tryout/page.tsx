@@ -69,12 +69,17 @@ export default function TryoutList() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
-          <div>
+           <div>
             <h1 className="text-4xl font-extrabold mb-2 text-gray-900 dark:text-white flex items-center gap-4">
               Ujian & Try Out <img src="/bahan/ready_test.svg" className="w-10 h-10" alt="test"/>
             </h1>
             <p className="text-gray-500">Uji kemampuanmu dengan berbagai simulasi ujian terbaik dan soal AI.</p>
           </div>
+          {(useAuth().role === 'teacher' || useAuth().role === 'admin') && (
+            <Link href="/teacher/create-exam" className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-black text-sm hover:scale-105 transition-transform shadow-lg shadow-primary/25">
+              <span className="text-xl">+</span> Buat Ujian Baru
+            </Link>
+          )}
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -14,6 +14,8 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedResult, setSelectedResult] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'personal' | 'students'>('personal');
+  const [editingPembahasan, setEditingPembahasan] = useState<{idx: number, text: string} | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (currentUsername && role) {
@@ -119,6 +121,62 @@ export default function ResultsPage() {
        return found || a;
     }).join(' | ');
   };
+  
+  const handleSavePembahasan = async () => {
+    if (!editingPembahasan || !selectedResult) return;
+    setUpdating(true);
+    try {
+      // 1. Fetch original exam/material to get current questions
+      let type = 'exams';
+      let res = await fetch(`/api/backend/exams/${selectedResult.tryoutId}`);
+      if (!res.ok) {
+        res = await fetch(`/api/backend/materials/${selectedResult.tryoutId}`);
+        type = 'materials';
+      }
+      if (!res.ok) throw new Error("Gagal mengambil data master soal");
+      
+      const masterData = await res.json();
+      let questions = [];
+      if (masterData.questions) {
+        questions = typeof masterData.questions === 'string' ? JSON.parse(masterData.questions) : masterData.questions;
+      } else if (masterData.content) {
+        const content = typeof masterData.content === 'string' ? JSON.parse(masterData.content) : masterData.content;
+        questions = content.questions || content;
+      }
+
+      // 2. Update the specific question's pembahasan
+      if (questions[editingPembahasan.idx]) {
+        questions[editingPembahasan.idx].pembahasan = editingPembahasan.text;
+        questions[editingPembahasan.idx].explanation = editingPembahasan.text;
+      }
+
+      // 3. Save back to server
+      const updateRes = await fetch(`/api/backend/${type}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedResult.tryoutId,
+          username: currentUsername,
+          updates: {
+            [type === 'exams' ? 'questions' : 'content']: JSON.stringify(questions)
+          }
+        })
+      });
+
+      if (!updateRes.ok) throw new Error("Gagal memperbarui pembahasan di server");
+      
+      alert("Pembahasan berhasil diperbarui!");
+      // Update local state to reflect change in current view
+      const newAnswers = [...selectedResult.answers];
+      newAnswers[editingPembahasan.idx].explanation = editingPembahasan.text;
+      setSelectedResult({...selectedResult, answers: newAnswers});
+      setEditingPembahasan(null);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -195,8 +253,37 @@ export default function ResultsPage() {
                     )}
                 </div>
                 <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-800">
-                  <p className="text-xs font-black text-blue-600 mb-2 tracking-widest uppercase">Penjelasan AI</p>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">{ans.explanation || 'Pembahasan tidak tersedia untuk soal ini.'}</p>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-xs font-black text-blue-600 tracking-widest uppercase">Penjelasan / Pembahasan</p>
+                    { (role === 'teacher' || role === 'admin') && !editingPembahasan && (
+                      <button 
+                        onClick={() => setEditingPembahasan({idx, text: ans.explanation || ans.pembahasan || ''})}
+                        className="text-[10px] font-black text-blue-700 bg-blue-100 px-2 py-1 rounded-lg hover:bg-blue-200 transition-colors"
+                      >
+                        EDIT PEMBAHASAN
+                      </button>
+                    )}
+                  </div>
+                  {editingPembahasan?.idx === idx ? (
+                    <div className="space-y-3">
+                      <textarea 
+                        value={editingPembahasan.text}
+                        onChange={(e) => setEditingPembahasan({...editingPembahasan, text: e.target.value})}
+                        className="w-full bg-white dark:bg-gray-800 border-2 border-blue-200 rounded-xl p-3 text-sm outline-none focus:border-blue-400 min-h-[100px]"
+                        placeholder="Tulis pembahasan di sini..."
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={handleSavePembahasan} disabled={updating} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                          {updating ? 'Menyimpan...' : 'Simpan'}
+                        </button>
+                        <button onClick={() => setEditingPembahasan(null)} className="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300">
+                          Batal
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">{ans.explanation || 'Pembahasan tidak tersedia untuk soal ini.'}</p>
+                  )}
                 </div>
               </div>
             ))}

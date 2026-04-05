@@ -200,54 +200,101 @@ export default function TryoutList() {
          ))}
        </div>
 
-       {/* Modal Kelola Pembahasan */}
+       {/* Modal Kelola Pembahasan - Redesigned for Premium Aesthetic */}
        {editingExam && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-dark p-6 md:p-8 rounded-[2.5rem] w-full max-w-4xl shadow-2xl border-2 border-primary/20 animate-scale-in my-auto">
-               <div className="flex justify-between items-start mb-8">
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            {/* Animated Backdrop */}
+            <div 
+              className="absolute inset-0 bg-darker/80 backdrop-blur-xl animate-in fade-in duration-300"
+              onClick={() => setEditingExam(null)}
+            />
+            
+            {/* Modal Container */}
+            <div className="relative bg-dark/95 border border-white/10 rounded-[3rem] w-full max-w-5xl shadow-[0_0_50px_-12px_rgba(0,168,132,0.3)] animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh] overflow-hidden">
+               {/* Header */}
+               <div className="p-8 sm:p-10 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-primary/10 to-transparent">
                   <div>
-                    <h2 className="text-2xl font-black text-gray-900 dark:text-white">Kelola Pembahasan</h2>
-                    <p className="text-gray-500 font-medium">Tambahkan atau perbarui penjelasan untuk setiap soal.</p>
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className="p-2 bg-primary/20 rounded-xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00a884" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="m8 12 2-2 2 2"/><path d="m14 12 2-2 2 2"/></svg>
+                      </div>
+                      <h2 className="text-3xl font-black text-white tracking-tight">Kelola Pembahasan</h2>
+                    </div>
+                    <p className="text-gray-400 font-medium">Sempurnakan penjelasan soal untuk pengalaman belajar yang lebih baik.</p>
                   </div>
-                  <button onClick={() => setEditingExam(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  <button 
+                    onClick={() => setEditingExam(null)} 
+                    className="p-3 hover:bg-white/10 text-gray-400 hover:text-white rounded-2xl transition-all active:scale-90 bg-white/5 border border-white/10"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                   </button>
                </div>
                
-               <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+               {/* Scrollable Content */}
+               <div className="flex-grow overflow-y-auto p-8 sm:p-10 custom-scrollbar space-y-8 bg-dark/30">
                   {editingQuestions.map((q, idx) => (
-                    <div key={idx} className="p-6 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-gray-800">
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">#{idx + 1}</span>
-                        <h4 className="font-bold text-gray-900 dark:text-gray-200 line-clamp-1">{q.text || q.question}</h4>
+                    <div key={idx} className="group relative p-8 bg-white/5 hover:bg-white/[0.07] rounded-[2.5rem] border border-white/10 transition-all duration-500 overflow-hidden">
+                      {/* Decorative Background Element */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors" />
+                      
+                      <div className="relative flex flex-col gap-6">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary-dark text-white flex items-center justify-center font-black text-lg shadow-lg shadow-primary/20">
+                            {idx + 1}
+                          </div>
+                          <div className="flex-grow pt-1">
+                            <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 block">Pertanyaan</label>
+                            <h4 className="text-xl font-bold text-gray-100 leading-relaxed">{q.text || q.question}</h4>
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <div className="flex justify-between items-center mb-3 px-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Penjelasan / Pembahasan</label>
+                            <span className="text-[10px] font-medium text-gray-500">Auto-saved as you type</span>
+                          </div>
+                          <textarea 
+                            className="w-full p-6 bg-darker/50 border-2 border-white/5 rounded-[2rem] outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/10 text-gray-200 text-base min-h-[160px] transition-all resize-none shadow-inner"
+                            placeholder="Tuliskan langkah-langkah atau alasan jawaban yang benar secara mendalam..."
+                            value={q.pembahasan || q.explanation || ""}
+                            onChange={(e) => {
+                              const newQs = [...editingQuestions];
+                              newQs[idx].pembahasan = e.target.value;
+                              newQs[idx].explanation = e.target.value;
+                              setEditingQuestions(newQs);
+                            }}
+                          />
+                        </div>
                       </div>
-                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Penjelasan / Pembahasan</label>
-                      <textarea 
-                        className="w-full p-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:border-primary/50 text-sm min-h-[100px] transition-all"
-                        placeholder="Tuliskan langkah-langkah atau alasan jawaban yang benar..."
-                        value={q.pembahasan || q.explanation || ""}
-                        onChange={(e) => {
-                          const newQs = [...editingQuestions];
-                          newQs[idx].pembahasan = e.target.value;
-                          newQs[idx].explanation = e.target.value;
-                          setEditingQuestions(newQs);
-                        }}
-                      />
                     </div>
                   ))}
                </div>
 
-               <div className="mt-8 flex gap-3">
+               {/* Footer Actions */}
+               <div className="p-8 sm:p-10 border-t border-white/5 bg-darker/50 flex flex-col sm:flex-row gap-4">
                   <button 
                     disabled={isSaving}
                     onClick={handleSavePembahasan}
-                    className="flex-grow py-4 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/25 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                    className="flex-grow group relative py-5 bg-primary hover:bg-primary-dark text-white rounded-2xl font-black text-lg shadow-[0_10px_30px_-10px_rgba(0,168,132,0.4)] hover:shadow-[0_15px_40px_-10px_rgba(0,168,132,0.5)] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
                   >
-                    {isSaving ? "Menyimpan Perubahan..." : "Simpan Semua Pembahasan"}
+                    <div className="relative z-10 flex items-center justify-center gap-3">
+                      {isSaving ? (
+                        <>
+                          <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Menyimpan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                          <span>Simpan Semua Perubahan</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
                   </button>
                   <button 
                     onClick={() => setEditingExam(null)}
-                    className="px-8 py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-black hover:bg-gray-200 transition-colors"
+                    className="px-10 py-5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-2xl font-black text-lg border border-white/10 transition-all active:scale-[0.98]"
                   >
                     Batal
                   </button>

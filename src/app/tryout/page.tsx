@@ -7,11 +7,11 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function TryoutList() {
   const { username } = useAuth();
-  const [tryouts, setTryouts] = useState<any[]>([
-    { id: 1, title: 'Try Out Nasional #5', subject: 'Campuran', duration: '120 Menit', date: 'Aktif' },
-    { id: 2, title: 'Simulasi UTBK: Penalaran Umum', subject: 'Logika', duration: '90 Menit', date: 'Berakhir Besok' },
-    { id: 3, title: 'Quiz Harian Aljabar', subject: 'Matematika Dasar', duration: '30 Menit', date: 'Tersedia' },
-  ]);
+  const [tryouts, setTryouts] = useState<any[]>([]);
+  const [editingExam, setEditingExam] = useState<any | null>(null);
+  const [editingQuestions, setEditingQuestions] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (username === undefined) return;
@@ -52,19 +52,70 @@ export default function TryoutList() {
 
         setTryouts([
           ...exams,
-          ...materials,
-          { id: 1, title: 'Try Out Nasional #5', subject: 'Campuran', duration: '120 Menit', date: 'Aktif' },
-          { id: 2, title: 'Simulasi UTBK: Penalaran Umum', subject: 'Logika', duration: '90 Menit', date: 'Berakhir Besok' },
-          { id: 3, title: 'Quiz Harian Aljabar', subject: 'Matematika Dasar', duration: '30 Menit', date: 'Tersedia' }
+          ...materials
         ].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
 
       } catch (err) {
-        console.error("Error fetching exams through proxy:", err);
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
-
     fetchData();
   }, [username]);
+
+  const handleEditPembahasan = async (t: any) => {
+    try {
+      setLoading(true);
+      const type = t.isExam ? 'exams' : 'materials';
+      const res = await fetch(`/api/backend/${type}/${t.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        let qs = [];
+        if (data.questions) {
+          qs = typeof data.questions === 'string' ? JSON.parse(data.questions) : data.questions;
+        } else if (data.content) {
+          const content = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
+          qs = content.questions || content;
+        }
+        setEditingExam({...t, type});
+        setEditingQuestions(qs);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSavePembahasan = async () => {
+    if (!editingExam) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/backend/${editingExam.type}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingExam.id,
+          username,
+          updates: {
+             [editingExam.type === 'exams' ? 'questions' : 'content']: JSON.stringify(editingQuestions)
+          }
+        })
+      });
+      if (res.ok) {
+        alert("Pembahasan berhasil disimpan!");
+        setEditingExam(null);
+      } else {
+        alert("Gagal menyimpan pembahasan");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error saat menyimpan");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -93,8 +144,16 @@ export default function TryoutList() {
              <p className="text-sm text-gray-500 mb-6 flex-grow">Status: <span className="font-semibold text-primary">{t.date}</span></p>
              <div className="grid grid-cols-2 gap-2 mt-auto">
                 {(t.uploadedBy === username) && (
-                   <button 
-                     onClick={async () => {
+                   <>
+                    <button 
+                      onClick={() => handleEditPembahasan(t)}
+                      className="p-3 bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition-all border border-blue-100 flex items-center justify-center shadow-sm"
+                      title="Kelola Pembahasan"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square-quote"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="m8 12 2-2 2 2"/><path d="m14 12 2-2 2 2"/></svg>
+                    </button>
+                    <button 
+                      onClick={async () => {
                         const confirmed = window.confirm(`Hapus ${t.isExam ? 'ujian' : 'soal AI'} ini?`);
                         if (confirmed) {
                           try {
@@ -104,7 +163,6 @@ export default function TryoutList() {
                             });
                             if (res.ok) {
                               alert("Berhasil dihapus");
-                              // Refresh data
                               window.location.reload();
                             } else {
                               const err = await res.json();
@@ -115,11 +173,13 @@ export default function TryoutList() {
                             alert("Gagal menghubungi server");
                           }
                         }
-                     }}
-                     className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                   >
-                      <Trash2 size={16} />
-                   </button>
+                      }}
+                      className="p-3 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all border border-red-100 flex items-center justify-center shadow-sm"
+                      title="Hapus Soal"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </>
                 )}
                <button 
                  onClick={(e) => {
@@ -139,6 +199,62 @@ export default function TryoutList() {
            </Card>
          ))}
        </div>
+
+       {/* Modal Kelola Pembahasan */}
+       {editingExam && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-dark p-6 md:p-8 rounded-[2.5rem] w-full max-w-4xl shadow-2xl border-2 border-primary/20 animate-scale-in my-auto">
+               <div className="flex justify-between items-start mb-8">
+                  <div>
+                    <h2 className="text-2xl font-black text-gray-900 dark:text-white">Kelola Pembahasan</h2>
+                    <p className="text-gray-500 font-medium">Tambahkan atau perbarui penjelasan untuk setiap soal.</p>
+                  </div>
+                  <button onClick={() => setEditingExam(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+               </div>
+               
+               <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {editingQuestions.map((q, idx) => (
+                    <div key={idx} className="p-6 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-gray-800">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">#{idx + 1}</span>
+                        <h4 className="font-bold text-gray-900 dark:text-gray-200 line-clamp-1">{q.text || q.question}</h4>
+                      </div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Penjelasan / Pembahasan</label>
+                      <textarea 
+                        className="w-full p-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:border-primary/50 text-sm min-h-[100px] transition-all"
+                        placeholder="Tuliskan langkah-langkah atau alasan jawaban yang benar..."
+                        value={q.pembahasan || q.explanation || ""}
+                        onChange={(e) => {
+                          const newQs = [...editingQuestions];
+                          newQs[idx].pembahasan = e.target.value;
+                          newQs[idx].explanation = e.target.value;
+                          setEditingQuestions(newQs);
+                        }}
+                      />
+                    </div>
+                  ))}
+               </div>
+
+               <div className="mt-8 flex gap-3">
+                  <button 
+                    disabled={isSaving}
+                    onClick={handleSavePembahasan}
+                    className="flex-grow py-4 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/25 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isSaving ? "Menyimpan Perubahan..." : "Simpan Semua Pembahasan"}
+                  </button>
+                  <button 
+                    onClick={() => setEditingExam(null)}
+                    className="px-8 py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-black hover:bg-gray-200 transition-colors"
+                  >
+                    Batal
+                  </button>
+               </div>
+            </div>
+         </div>
+       )}
     </div>
   );
 }

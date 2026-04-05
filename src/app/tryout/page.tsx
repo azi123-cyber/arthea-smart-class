@@ -15,37 +15,50 @@ export default function TryoutList() {
   ]);
 
   useEffect(() => {
-    // Tunggu sampai username ada jika user sedang login
-    if (username === undefined) return; 
+    if (username === undefined) return;
 
     const materialsRef = ref(db, 'materials');
-    return onValue(materialsRef, (snapshot) => {
+    const examsRef = ref(db, 'exams');
+
+    const handleData = (snapshot: any, isExams = false) => {
       const data = snapshot.val();
-      if (data) {
-         const fetchedMaterials = Object.entries(data)
-           .filter(([id, val]: [string, any]) => 
-              (val.type === 'soal' || val.type === 'tryout') && 
-              (!val.isPrivate || val.uploadedBy === username)
-           )
-           .map(([id, val]: [string, any]) => ({
-             id,
-             ...val,
-             title: val.title,
-             subject: val.subject,
-             duration: 'Fleksibel',
-             date: 'AI / Soal Tersedia'
-           }))
-           .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-         
-         // Merge with hardcoded placeholders for demonstration
-         setTryouts([
-            ...fetchedMaterials,
-            { id: 1, title: 'Try Out Nasional #5', subject: 'Campuran', duration: '120 Menit', date: 'Aktif' },
-            { id: 2, title: 'Simulasi UTBK: Penalaran Umum', subject: 'Logika', duration: '90 Menit', date: 'Berakhir Besok' },
-            { id: 3, title: 'Quiz Harian Aljabar', subject: 'Matematika Dasar', duration: '30 Menit', date: 'Tersedia' }
-         ]);
-      }
+      if (!data) return [];
+      return Object.entries(data)
+        .filter(([id, val]: [string, any]) =>
+          isExams || ((val.type === 'soal' || val.type === 'tryout') && 
+          (!val.isPrivate || val.uploadedBy === username))
+        )
+        .map(([id, val]: [string, any]) => ({
+          id,
+          ...val,
+          title: val.title,
+          subject: val.subject || (isExams ? 'Ujian Guru' : 'AI Gen'),
+          duration: val.durationMinutes || val.duration || 'Fleksibel',
+          date: isExams ? 'Ujian Guru' : 'AI / Soal Tersedia',
+          isExam: isExams
+        }));
+    };
+
+    const unsubscribeMaterials = onValue(materialsRef, (snapshot) => {
+      const materials = handleData(snapshot, false);
+      setTryouts(prev => {
+        const otherThanMaterials = prev.filter(p => p.isExam || p.id === 1 || p.id === 2 || p.id === 3);
+        return [...materials, ...otherThanMaterials].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      });
     });
+
+    const unsubscribeExams = onValue(examsRef, (snapshot) => {
+      const exams = handleData(snapshot, true);
+      setTryouts(prev => {
+        const otherThanExams = prev.filter(p => !p.isExam || p.id === 1 || p.id === 2 || p.id === 3);
+        return [...exams, ...otherThanExams].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      });
+    });
+
+    return () => {
+      unsubscribeMaterials();
+      unsubscribeExams();
+    };
   }, [username]);
 
   return (

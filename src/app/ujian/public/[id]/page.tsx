@@ -402,6 +402,17 @@ export default function PublicQuizInterface() {
   }
 
 
+  if (loading) return <div className="min-h-[60vh] flex items-center justify-center"><div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
+
+  if (!loading && questions.length === 0 && hasStarted) {
+    return (
+      <div className="text-center py-20">
+        <StatusAnimation type="access_denied" message="Soal Tidak Ditemukan" subMessage="Ujian ini belum memiliki daftar soal atau terjadi kesalahan saat memuat data." />
+        <Link href="/" className="mt-8 inline-block px-10 py-4 bg-gray-900 text-white rounded-full font-bold shadow-xl hover:scale-105 transition">Kembali</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4 md:gap-6 animate-fade-in max-w-4xl mx-auto relative px-3 md:px-4 pb-20 pt-4 md:pt-0">
       {/* Warning Modal Overlay */}
@@ -440,9 +451,11 @@ export default function PublicQuizInterface() {
             </div>
             <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2">
                <span className="text-xs text-gray-400 font-bold bg-gray-50 px-2 py-1 rounded">Soal {currentQuestionIndex + 1} / {questions.length}</span>
-               <span className={`text-[9px] md:text-[10px] font-black text-white px-2 py-1 rounded tracking-widest uppercase ${currentQuestion.type === 'PG' ? 'bg-blue-500' : currentQuestion.type === 'PGK' ? 'bg-purple-500' : 'bg-green-500'}`}>
-                 {currentQuestion.type}
-               </span>
+               {currentQuestion && (
+                 <span className={`text-[9px] md:text-[10px] font-black text-white px-2 py-1 rounded tracking-widest uppercase ${currentQuestion.type === 'PG' ? 'bg-blue-500' : currentQuestion.type === 'PGK' ? 'bg-purple-500' : 'bg-green-500'}`}>
+                   {currentQuestion.type}
+                 </span>
+               )}
             </div>
          </div>
       </div>

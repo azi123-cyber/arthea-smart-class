@@ -515,6 +515,34 @@ app.get("/materials/:id", async (req, res) => {
   }
 });
 
+// ============================================================
+// DELETE EXAMS (SECURE PROXY)
+// ============================================================
+
+/**
+ * DELETE Single Exam
+ */
+app.delete("/exams/:id", requireAuth, async (req, res) => {
+  try {
+    await db.ref(`exams/${req.params.id}`).remove();
+    res.json({ success: true, message: "Ujian berhasil dihapus" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE Single Material
+ */
+app.delete("/materials/:id", requireAuth, async (req, res) => {
+  try {
+    await db.ref(`materials/${req.params.id}`).remove();
+    res.json({ success: true, message: "Materi berhasil dihapus" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ------------------------------------------------------------
 // ROUTE: Ambil Limit AI User Hari Ini
 // GET /ai/limits

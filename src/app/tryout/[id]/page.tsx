@@ -29,25 +29,44 @@ export default function QuizInterface() {
 
   useEffect(() => {
     if (!params.id) return;
-    const materialRef = ref(db, `materials/${params.id}`);
-    get(materialRef).then((snap) => {
-      if (snap.exists()) {
-        const mat = snap.val();
-        setMaterialData(mat);
-        try {
-           let parsed = typeof mat.content === 'string' ? JSON.parse(mat.content) : mat.content;
-           // Handle cases where the questions are nested under a 'questions' key
-           if (parsed && !Array.isArray(parsed) && parsed.questions) parsed = parsed.questions;
-           if (!Array.isArray(parsed)) parsed = [parsed];
-           setQuestions(parsed);
-           if (mat.duration) setTimeLeft(mat.duration * 60);
-           else setTimeLeft(90 * 60);
-        } catch (e) {
-           console.error("Gagal mengurai konten materi");
+    
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Coba fetch dari proxy backend
+        let res = await fetch(`/api/backend/exams/${params.id}`, { cache: 'no-store' });
+        if (!res.ok) {
+           res = await fetch(`/api/backend/materials/${params.id}`, { cache: 'no-store' });
         }
+
+        if (res.ok) {
+          const mat = await res.json();
+          setMaterialData(mat);
+          try {
+             let parsed = typeof mat.content === 'string' ? JSON.parse(mat.content) : mat.content;
+             if (!parsed && mat.questions) {
+                parsed = typeof mat.questions === 'string' ? JSON.parse(mat.questions) : mat.questions;
+             }
+             // Handle cases where the questions are nested under a 'questions' key
+             if (parsed && !Array.isArray(parsed) && parsed.questions) parsed = parsed.questions;
+             if (!Array.isArray(parsed)) parsed = [parsed];
+             setQuestions(parsed);
+             
+             const dur = Number(mat.durationMinutes || mat.duration);
+             if (dur) setTimeLeft(dur * 60);
+             else setTimeLeft(90 * 60);
+          } catch (e) {
+             console.error("Gagal mengurai konten materi");
+          }
+        }
+      } catch (err) {
+        console.error("Error loading tryout via proxy:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    fetchData();
   }, [params.id]);
 
   useEffect(() => {

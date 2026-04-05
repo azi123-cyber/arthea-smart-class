@@ -41,9 +41,9 @@ export default function PublicQuizInterface() {
       try {
         setLoading(true);
         // Coba fetch dari proxy backend untuk bypass permission denied
-        let res = await fetch(`${BACKEND_URL}/exams/${params.id}`);
+        let res = await fetch(`${BACKEND_URL}/exams/${params.id}`, { cache: 'no-store' });
         if (!res.ok) {
-           res = await fetch(`${BACKEND_URL}/materials/${params.id}`);
+           res = await fetch(`${BACKEND_URL}/materials/${params.id}`, { cache: 'no-store' });
         }
 
         if (res.ok) {
@@ -386,7 +386,7 @@ export default function PublicQuizInterface() {
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-800">
                            <p className="text-[10px] font-black text-blue-600 uppercase mb-2 tracking-widest">Pembahasan</p>
-                           <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{q.explanation || "Tidak ada pembahasan tersedia."}</p>
+                           <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{q.pembahasan || q.explanation || "Tidak ada pembahasan tersedia."}</p>
                         </div>
                      </div>
                   );

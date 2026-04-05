@@ -2,8 +2,7 @@
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { ref, onValue, set } from 'firebase/database';
+import { Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function TryoutList() {
@@ -20,12 +19,15 @@ export default function TryoutList() {
     const fetchData = async () => {
       try {
         const [examsRes, materialsRes] = await Promise.all([
-          fetch('/api/backend/exams/list'),
-          fetch('/api/backend/materials/list')
+          fetch('/api/backend/exams/list', { cache: 'no-store' }),
+          fetch('/api/backend/materials/list', { cache: 'no-store' })
         ]);
 
         const examsData = await examsRes.json();
         const materialsData = await materialsRes.json();
+        
+        console.log("Exams from proxy:", examsData);
+        console.log("Materials from proxy:", materialsData);
 
         const handleData = (data: any, isExams = false) => {
           if (!data || data.error) return [];
@@ -85,14 +87,35 @@ export default function TryoutList() {
              <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">{t.title}</h3>
              <p className="text-sm text-gray-500 mb-6 flex-grow">Status: <span className="font-semibold text-primary">{t.date}</span></p>
              <div className="grid grid-cols-2 gap-2 mt-auto">
-               {(t.uploadedBy === username) && (
-                  <button onClick={async () => {
-                     const confirmed = window.confirm("Hapus soal AI ini?");
-                     if (confirmed) {
-                       await set(ref(db, `materials/${t.id}`), null);
-                     }
-                  }} className="col-span-2 text-xs font-bold bg-red-50 text-red-600 border border-red-100 py-2 rounded-xl mb-2 hover:bg-red-100 transition">Hapus Soal</button>
-               )}
+                {(t.uploadedBy === username) && (
+                   <button 
+                     onClick={async () => {
+                        const confirmed = window.confirm(`Hapus ${t.isExam ? 'ujian' : 'soal AI'} ini?`);
+                        if (confirmed) {
+                          try {
+                            const type = t.isExam ? 'exams' : 'materials';
+                            const res = await fetch(`/api/backend/${type}/${t.id}`, {
+                              method: 'DELETE'
+                            });
+                            if (res.ok) {
+                              alert("Berhasil dihapus");
+                              // Refresh data
+                              window.location.reload();
+                            } else {
+                              const err = await res.json();
+                              alert("Gagal menghapus: " + (err.error || "Unknown error"));
+                            }
+                          } catch (err) {
+                            console.error("Error deleting via proxy:", err);
+                            alert("Gagal menghubungi server");
+                          }
+                        }
+                     }}
+                     className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                   >
+                      <Trash2 size={16} />
+                   </button>
+                )}
                <button 
                  onClick={(e) => {
                    e.preventDefault();

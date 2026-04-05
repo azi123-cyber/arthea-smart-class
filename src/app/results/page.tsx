@@ -13,6 +13,7 @@ export default function ResultsPage() {
   const [userStats, setUserStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedResult, setSelectedResult] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<'personal' | 'students'>('personal');
 
   useEffect(() => {
     if (currentUsername && role) {
@@ -221,13 +222,31 @@ export default function ResultsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
           <h1 className="text-4xl font-black mb-2 text-gray-900 dark:text-white tracking-tight">
-            { (role === 'teacher' || role === 'admin') ? 'Hasil Pengerjaan User' : 'Hasil Ujian & Pembahasan' }
+            { (role === 'teacher' || role === 'admin') ? 'Manajemen Hasil' : 'Hasil Ujian & Pembahasan' }
           </h1>
           <p className="text-gray-500 font-medium">
-            { (role === 'teacher' || role === 'admin') ? 'Pantau progres dan hasil pengerjaan seluruh siswa Anda.' : 'Lihat riwayat nilai dan penjelasan untuk setiap soal yang telah dikerjakan.' }
+            { (role === 'teacher' || role === 'admin') ? 'Pantau hasil pengerjaan Anda sendiri maupun seluruh siswa.' : 'Lihat riwayat nilai dan penjelasan untuk setiap soal yang telah dikerjakan.' }
           </p>
         </div>
+        
         { (role === 'teacher' || role === 'admin') && (
+           <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-2xl border border-gray-200 dark:border-gray-800 self-start md:self-auto">
+             <button 
+               onClick={() => setActiveTab('personal')}
+               className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'personal' ? 'bg-primary text-white shadow-lg' : 'text-gray-500 hover:text-primary'}`}
+             >
+               Hasil Saya
+             </button>
+             <button 
+               onClick={() => setActiveTab('students')}
+               className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'students' ? 'bg-primary text-white shadow-lg' : 'text-gray-500 hover:text-primary'}`}
+             >
+               Hasil Siswa
+             </button>
+           </div>
+        )}
+        
+        { (role === 'teacher' || role === 'admin') && activeTab === 'students' && (
            <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-2xl border border-blue-100 dark:border-blue-800 flex items-center gap-3">
               <BarChart4 className="text-blue-600" />
               <div>
@@ -255,7 +274,7 @@ export default function ResultsPage() {
         </Card>
       )}
 
-      {globalStats.length > 0 && (
+      {activeTab === 'students' && globalStats.length > 0 && (
          <Card className="!p-6 border-2 border-gray-100 dark:border-gray-800 shadow-md">
             <h3 className="text-xl font-black mb-6 flex items-center gap-2 tracking-tight text-gray-900 dark:text-white"><Trophy className="text-yellow-500"/> Peringkat Rata-rata Peserta</h3>
             <div className="overflow-x-auto">
@@ -290,11 +309,15 @@ export default function ResultsPage() {
 
       <div className="flex items-center gap-3 mt-4 mb-2">
          <Clock className="text-gray-400" size={18} />
-         <h3 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">Riwayat Pengerjaan</h3>
+         <h3 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">
+           {activeTab === 'personal' ? 'Riwayat Saya' : 'Riwayat Pengerjaan Siswa'}
+         </h3>
       </div>
 
       <div className="grid gap-5">
-        {results.map((res) => (
+        {results
+          .filter(res => activeTab === 'students' || res.studentUsername === currentUsername)
+          .map((res) => (
           <Card key={res.id} className="cursor-pointer group hover:!border-primary/50 !p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all duration-300 border-2 border-transparent bg-white dark:bg-[#111b21] shadow-sm hover:shadow-xl rounded-3xl" onClick={() => setSelectedResult(res)}>
             <div className="flex items-center gap-5 flex-grow w-full">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl group-hover:scale-110 transition-transform">

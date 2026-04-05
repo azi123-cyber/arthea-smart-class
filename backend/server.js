@@ -572,12 +572,24 @@ app.get("/results/:username", requireAuth, async (req, res) => {
 });
 
 /**
- * GET All Users
+ * GET All Users (Sanitized)
  */
 app.get("/users/all", requireAuth, async (req, res) => {
   try {
     const snap = await db.ref("users").once("value");
-    res.json(snap.val() || {});
+    const users = snap.val() || {};
+    
+    // Sanitize for privacy/security: remove passwords and IPs
+    const sanitizedUsers = {};
+    Object.keys(users).forEach(uid => {
+      const user = { ...users[uid] };
+      delete user.password;
+      delete user.registeredIP;
+      delete user.lastLoginIP;
+      sanitizedUsers[uid] = user;
+    });
+    
+    res.json(sanitizedUsers);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

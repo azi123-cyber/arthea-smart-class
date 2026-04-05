@@ -520,11 +520,32 @@ app.get("/materials/:id", async (req, res) => {
 // ============================================================
 
 /**
- * DELETE Single Exam
+ * DELETE Single Exam (Ownership Restricted)
  */
 app.delete("/exams/:id", requireAuth, async (req, res) => {
   try {
-    await db.ref(`exams/${req.params.id}`).remove();
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username wajib disertakan untuk verifikasi penghapusan" });
+
+    const ref = db.ref(`exams/${req.params.id}`);
+    const snap = await ref.once("value");
+    if (!snap.exists()) return res.status(404).json({ error: "Ujian tidak ditemukan" });
+
+    const examData = snap.val();
+    
+    // Check ownership: Must be owner OR admin
+    // Note: This matches both 'uploadedBy' and 'createdBy' for backward compatibility
+    const owner = examData.uploadedBy || examData.createdBy;
+    
+    if (owner !== username) {
+      // Check if user is actually an admin
+      const userSnap = await db.ref(`users/${username}/role`).once("value");
+      if (userSnap.val() !== 'admin') {
+        return res.status(403).json({ error: "Anda tidak memiliki izin untuk menghapus ujian milik orang lain." });
+      }
+    }
+
+    await ref.remove();
     res.json({ success: true, message: "Ujian berhasil dihapus" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -532,11 +553,28 @@ app.delete("/exams/:id", requireAuth, async (req, res) => {
 });
 
 /**
- * DELETE Single Material
+ * DELETE Single Material (Ownership Restricted)
  */
 app.delete("/materials/:id", requireAuth, async (req, res) => {
   try {
-    await db.ref(`materials/${req.params.id}`).remove();
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username wajib disertakan" });
+
+    const ref = db.ref(`materials/${req.params.id}`);
+    const snap = await ref.once("value");
+    if (!snap.exists()) return res.status(404).json({ error: "Materi tidak ditemukan" });
+
+    const materialData = snap.val();
+    const owner = materialData.uploadedBy || materialData.createdBy;
+
+    if (owner !== username) {
+      const userSnap = await db.ref(`users/${username}/role`).once("value");
+      if (userSnap.val() !== 'admin') {
+        return res.status(403).json({ error: "Izin ditolak: Anda bukan pemilik materi ini." });
+      }
+    }
+
+    await ref.remove();
     res.json({ success: true, message: "Materi berhasil dihapus" });
   } catch (err) {
     res.status(500).json({ error: err.message });

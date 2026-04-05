@@ -94,7 +94,7 @@ export default function TryoutList() {
                         if (confirmed) {
                           try {
                             const type = t.isExam ? 'exams' : 'materials';
-                            const res = await fetch(`/api/backend/${type}/${t.id}`, {
+                            const res = await fetch(`/api/backend/${type}/${t.id}?username=${username}`, {
                               method: 'DELETE'
                             });
                             if (res.ok) {

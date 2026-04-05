@@ -105,7 +105,7 @@ export default function CreateExam() {
         visibility,
         accessToken: (visibility === 'private' && enableToken) ? accessToken.trim() : null,
         showPembahasanNow,
-        createdBy: username || 'Guru',
+        uploadedBy: username || 'Guru',
         createdAt: Date.now(),
         questions: questions.map(q => ({
           type: q.type,

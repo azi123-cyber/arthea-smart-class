@@ -256,7 +256,7 @@ export default function PublicQuizInterface() {
 
 
   useEffect(() => {
-     if (questions.length > 0 && !submitted && hasStarted) {
+     if (questions.length > 0 && !submitted && hasStarted && timeLeft > 0) {
         const timer = setInterval(() => {
            setTimeLeft(prev => {
               if (prev <= 1) {
@@ -270,9 +270,10 @@ export default function PublicQuizInterface() {
         }, 1000);
         return () => clearInterval(timer);
      }
-  }, [questions, submitted, hasStarted]);
+  }, [questions, submitted, hasStarted, timeLeft > 0]);
 
   const formatTime = (seconds: number) => {
+     if (seconds <= 0) return 'Unlimited';
      const h = Math.floor(seconds / 3600);
      const m = Math.floor((seconds % 3600) / 60);
      const s = seconds % 60;
@@ -527,12 +528,12 @@ export default function PublicQuizInterface() {
            <p className="text-xs text-gray-500 font-medium tracking-wide">Pengerja: {guestName}</p>
          </div>
          <div className="flex items-center gap-2 md:gap-4">
-            <div className="flex items-center gap-3 bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold font-mono text-sm md:text-base">
+            <div className={`flex items-center gap-3 ${timeLeft > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'} px-4 py-2 rounded-xl font-bold font-mono text-sm md:text-base`}>
                <span className="relative flex h-3 w-3">
-                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${timeLeft > 0 ? 'bg-red-400' : 'bg-green-400'} opacity-75`}></span>
+                 <span className={`relative inline-flex rounded-full h-3 w-3 ${timeLeft > 0 ? 'bg-red-500' : 'bg-green-500'}`}></span>
                </span>
-               <span className="hidden md:inline">Sisa Waktu: </span>{formatTime(timeLeft)}
+               <span className="hidden md:inline">{timeLeft > 0 ? 'Sisa Waktu: ' : 'Durasi: '}</span>{formatTime(timeLeft)}
             </div>
             <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2">
                <span className="text-xs text-gray-400 font-bold bg-gray-50 px-2 py-1 rounded">Soal {currentQuestionIndex + 1} / {questions.length}</span>

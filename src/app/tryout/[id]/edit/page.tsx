@@ -76,6 +76,15 @@ export default function ExamEditor() {
           username,
           updates: {
              title: examData.title,
+             subject: examData.subject,
+             targetClass: examData.targetClass,
+             hasTimer: examData.hasTimer,
+             durationMinutes: examData.hasTimer ? (examData.durationMinutes > 360 ? null : examData.durationMinutes) : null,
+             isUnlimitedTime: examData.hasTimer && examData.durationMinutes > 360,
+             maxAttempts: examData.maxAttempts > 5 ? 0 : examData.maxAttempts,
+             isUnlimitedAttempts: examData.maxAttempts > 5,
+             visibility: examData.visibility,
+             showPembahasanNow: examData.showPembahasanNow,
              [examData.type === 'exams' ? 'questions' : 'content']: JSON.stringify(questions)
           }
         })
@@ -180,6 +189,117 @@ export default function ExamEditor() {
                   placeholder="Masukkan Judul Ujian Disini..."
                 />
              </div>
+          </Card>
+
+          {/* Pengaturan Ujian Card */}
+          <Card className="!p-8 bg-[#0b0f19] border-white/5 shadow-2xl">
+              <label className="block text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-8">Pengaturan Ujian</label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Subject & Class */}
+                  <div className="space-y-6">
+                      <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Mata Pelajaran</label>
+                          <select 
+                              value={examData.subject || 'Matematika'} 
+                              onChange={(e) => setExamData({...examData, subject: e.target.value})}
+                              className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-2xl outline-none focus:border-primary text-white font-bold appearance-none cursor-pointer"
+                          >
+                              {['Matematika','Fisika','Kimia','Biologi','Informatika','Bahasa Indonesia','Bahasa Inggris','Sejarah','Astronomi','Ekonomi'].map(s => <option key={s}>{s}</option>)}
+                          </select>
+                      </div>
+                      <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Target Kelas</label>
+                          <select 
+                              value={examData.targetClass || 'Semua'} 
+                              onChange={(e) => setExamData({...examData, targetClass: e.target.value})}
+                              className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-2xl outline-none focus:border-primary text-white font-bold appearance-none cursor-pointer"
+                          >
+                              {['Semua','X','XI','XII'].map(k => <option key={k} value={k}>Kelas {k}</option>)}
+                          </select>
+                      </div>
+                  </div>
+
+                  {/* Timer & Attempts */}
+                  <div className="space-y-6">
+                      <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Batas Waktu</label>
+                          <select 
+                              value={!examData.hasTimer ? 'none' : (examData.durationMinutes > 360 || examData.durationMinutes === null ? 'unlimited' : String(examData.durationMinutes))}
+                              onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === 'none') {
+                                      setExamData({...examData, hasTimer: false, durationMinutes: null});
+                                  } else {
+                                      setExamData({
+                                          ...examData, 
+                                          hasTimer: true, 
+                                          durationMinutes: val === 'unlimited' ? 999 : parseInt(val)
+                                      });
+                                  }
+                              }}
+                              className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-2xl outline-none focus:border-primary text-white font-bold appearance-none cursor-pointer"
+                          >
+                              <option value="none">Tidak Ada Batas Waktu</option>
+                              <option value="40">40 Menit</option>
+                              <option value="60">60 Menit</option>
+                              <option value="120">120 Menit (2 Jam)</option>
+                              <option value="240">240 Menit (4 Jam)</option>
+                              <option value="360">360 Menit (6 Jam)</option>
+                              <option value="unlimited">Unlimited (Tanpa Batas)</option>
+                          </select>
+                      </div>
+                      <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Maks. Pengerjaan</label>
+                          <select 
+                              value={examData.maxAttempts > 5 || examData.maxAttempts === 0 ? 'unlimited' : String(examData.maxAttempts || 1)}
+                              onChange={(e) => {
+                                  const val = e.target.value;
+                                  setExamData({
+                                      ...examData, 
+                                      maxAttempts: val === 'unlimited' ? 0 : parseInt(val)
+                                  });
+                              }}
+                              className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-2xl outline-none focus:border-primary text-white font-bold appearance-none cursor-pointer"
+                          >
+                              <option value="1">1 Kali</option>
+                              <option value="2">2 Kali</option>
+                              <option value="3">3 Kali</option>
+                              <option value="4">4 Kali</option>
+                              <option value="5">5 Kali</option>
+                              <option value="6">6 Kali</option>
+                              <option value="unlimited">Unlimited (Tanpa Batas)</option>
+                          </select>
+                      </div>
+                  </div>
+
+                  {/* Visibility & Pembahasan */}
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                      <div className="flex items-center gap-4 p-5 bg-white/5 border border-white/10 rounded-2xl">
+                          <input 
+                              type="checkbox" 
+                              id="show-pembahasan"
+                              checked={examData.showPembahasanNow} 
+                              onChange={(e) => setExamData({...examData, showPembahasanNow: e.target.checked})}
+                              className="w-5 h-5 accent-primary" 
+                          />
+                          <label htmlFor="show-pembahasan" className="cursor-pointer">
+                              <p className="text-sm font-bold text-white">Tampilkan Pembahasan</p>
+                              <p className="text-[10px] text-gray-400">Muncul setelah ujian selesai</p>
+                          </label>
+                      </div>
+                      <div className="flex items-center gap-4 p-5 bg-white/5 border border-white/10 rounded-2xl">
+                          <select 
+                              value={examData.visibility || 'private'}
+                              onChange={(e) => setExamData({...examData, visibility: e.target.value})}
+                              className="bg-transparent border-none outline-none font-bold text-sm text-primary cursor-pointer w-full"
+                          >
+                              <option value="public" className="bg-dark text-white">🌍 Publik (Share Link)</option>
+                              <option value="private" className="bg-dark text-white">🔒 Privat (Hanya Siswa)</option>
+                          </select>
+                      </div>
+                  </div>
+              </div>
           </Card>
 
           {/* Question List Section */}

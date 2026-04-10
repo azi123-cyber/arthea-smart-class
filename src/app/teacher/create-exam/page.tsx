@@ -239,46 +239,63 @@ export default function CreateExam() {
           {/* Timer */}
           <div className="space-y-3">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Batas Waktu</label>
-            <button onClick={() => setHasTimer(!hasTimer)}
-              className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl border-2 font-bold text-sm transition-all ${hasTimer ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-500'}`}>
-              <Clock size={18} />
-              <span>{hasTimer ? (numDuration > 360 ? `Unlimited (>${numDuration} menit)` : `${numDuration} Menit`) : 'Tidak Ada Batas Waktu'}</span>
-            </button>
-            {hasTimer && (
-              <div className="space-y-1">
-                <input type="number" 
-                  min="1"
-                  value={durationMinutes} 
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === '' || parseInt(val) >= 1) setDurationMinutes(val);
-                    else setDurationMinutes('1');
-                  }} 
-                  className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${numDuration > 360 ? 'border-green-400' : 'border-primary/20'}`} placeholder="Menit" />
-                <p className={`text-xs font-bold ml-1 ${numDuration > 360 ? 'text-green-600' : 'text-gray-400'}`}>
-                  {numDuration > 360 ? '✅ Lebih dari 360 menit = Unlimited (tanpa batas waktu)' : `Maksimal 360 menit. Lebih dari itu = unlimited.`}
+            <div className="space-y-2">
+              <select 
+                value={hasTimer ? (actualDuration === null ? 'unlimited' : String(actualDuration)) : 'none'}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === 'none') {
+                    setHasTimer(false);
+                  } else {
+                    setHasTimer(true);
+                    if (val === 'unlimited') {
+                      setDurationMinutes('999'); // > 360 = unlimited
+                    } else {
+                      setDurationMinutes(val);
+                    }
+                  }
+                }}
+                className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/30 rounded-2xl px-5 py-4 outline-none font-bold text-gray-900 dark:text-white appearance-none cursor-pointer"
+              >
+                <option value="none">Tidak Ada Batas Waktu</option>
+                <option value="40">40 Menit</option>
+                <option value="60">60 Menit</option>
+                <option value="120">120 Menit (2 Jam)</option>
+                <option value="240">240 Menit (4 Jam)</option>
+                <option value="360">360 Menit (6 Jam)</option>
+                <option value="unlimited">Unlimited (Tanpa Batas)</option>
+              </select>
+              {hasTimer && (
+                <p className="text-[10px] font-bold text-primary ml-1">
+                  {actualDuration === null ? '✅ Mode Unlimited Aktif' : `⏱️ Timer Aktif: ${actualDuration} Menit`}
                 </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Max Attempts */}
           <div className="space-y-3">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Maks. Pengerjaan</label>
-            <div className="space-y-1">
-              <input type="number" 
-                min="1"
-                value={maxAttempts} 
-                onChange={e => {
-                  const val = e.target.value;
-                  if (val === '' || parseInt(val) >= 1) setMaxAttempts(val);
-                  else setMaxAttempts('1');
-                }} 
-                className={`w-full bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl px-5 py-3 outline-none font-bold text-gray-900 dark:text-white ${numAttempts > 5 ? 'border-green-400' : 'border-gray-100 dark:border-gray-700'}`} placeholder="Jumlah percobaan" />
-              <p className={`text-xs font-bold ml-1 ${numAttempts > 5 ? 'text-green-600' : 'text-gray-400'}`}>
-                {numAttempts > 5 ? `✅ Lebih dari 5 = Unlimited (siswa bisa kerjakan selamanya)` : `1–5 = terbatas. Lebih dari 5 = unlimited.`}
-              </p>
-            </div>
+            <select 
+              value={actualMaxAttempts === 0 ? 'unlimited' : String(actualMaxAttempts)}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === 'unlimited') {
+                  setMaxAttempts('99'); // > 5 = unlimited
+                } else {
+                  setMaxAttempts(val);
+                }
+              }}
+              className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-primary/30 rounded-2xl px-5 py-4 outline-none font-bold text-gray-900 dark:text-white appearance-none cursor-pointer"
+            >
+              <option value="1">1 Kali</option>
+              <option value="2">2 Kali</option>
+              <option value="3">3 Kali</option>
+              <option value="4">4 Kali</option>
+              <option value="5">5 Kali</option>
+              <option value="6">6 Kali</option>
+              <option value="unlimited">Unlimited (Tanpa Batas)</option>
+            </select>
           </div>
 
           {/* Visibility */}

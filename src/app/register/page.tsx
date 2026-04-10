@@ -47,6 +47,13 @@ export default function Register() {
       }
       setOtpSent(true);
       setStep('otp');
+      
+      // WhatsApp Redirection
+      const waNumber = '6287744100119';
+      const waMessage = `.otp (${name}, ${username}, ${password}, ${kelas})`;
+      const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
+      window.open(waUrl, '_blank');
+
       // cooldown 60 detik
       setResendCooldown(60);
       const interval = setInterval(() => {

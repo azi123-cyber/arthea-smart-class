@@ -9,6 +9,16 @@ const { v4: uuidv4 } = require("uuid");
 const axios = require("axios");
 
 // ============================================================
+// GLOBAL ERROR HANDLER
+// ============================================================
+process.on('uncaughtException', (err) => {
+  console.error("❌ Uncaught Exception:", err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+// ============================================================
 // OTP & IP SECURITY
 // ============================================================
 // OTP lokal di memory (tetap ada sebagai cache, tapi primary di Firebase)
@@ -103,6 +113,11 @@ if (!fs.existsSync(serviceAccountPath)) {
 }
 
 const serviceAccount = require(path.resolve(serviceAccountPath));
+
+if (!process.env.FIREBASE_DATABASE_URL) {
+  console.error("❌ ERROR: FIREBASE_DATABASE_URL tidak ditemukan di environment variables / file .env!");
+  process.exit(1);
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -829,7 +844,7 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
       }
 
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           contents: [{ parts: partsArr }],
           generationConfig: {
@@ -848,7 +863,7 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
       if (imageContent && imageMimeType) {
         if (model === "meta-llama/llama-3.1-8b-instruct" || model === "anthropic/claude-3-haiku") {
           // Both might complain about image structure depending on the format. We fallback to Gemini Flash on openrouter.
-          model = "google/gemini-2.5-flash";
+          model = "google/gemini-1.5-flash";
         }
         contentPayload = [
           { type: "text", text: systemPrompt },

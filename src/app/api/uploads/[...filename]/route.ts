@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_ORIGIN = process.env.BACKEND_URL || 'http://154.12.117.59:5094';
+const BACKEND_ORIGIN = process.env.BACKEND_URL || 'http://localhost:5094';
 
 type Context = { params: Promise<{ filename: string[] }> };
 

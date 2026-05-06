@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // URL backend Pterodactyl (server-side only, tidak perlu NEXT_PUBLIC)
-const BACKEND_ORIGIN = process.env.BACKEND_URL || 'http://154.12.117.59:5094';
+const BACKEND_ORIGIN = process.env.BACKEND_URL || 'http://localhost:5094';
 const API_TOKEN = process.env.API_SECRET_TOKEN || 'arthea_smart_class_2024_secure_99';
 
 type Context = { params: Promise<{ path: string[] }> };

@@ -36,8 +36,14 @@ export default function Login() {
       });
 
       if (!trackRes.ok) {
-        const data = await trackRes.json();
-        setError(data.error || 'Akses ditolak.');
+        let errorMsg = 'Akses ditolak.';
+        try {
+          const data = await trackRes.json();
+          errorMsg = data.error || errorMsg;
+        } catch (e) {
+          errorMsg = `Terjadi kesalahan pada server (Status: ${trackRes.status}). Silakan coba beberapa saat lagi.`;
+        }
+        setError(errorMsg);
         setIsSubmitting(false);
         return;
       }

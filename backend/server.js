@@ -22,7 +22,7 @@ process.on('unhandledRejection', (reason, promise) => {
 // OTP & IP SECURITY
 // ============================================================
 // OTP lokal di memory (tetap ada sebagai cache, tapi primary di Firebase)
-const otpStore = {}; 
+const otpStore = {};
 
 /**
  * Utility: Dapatkan IP User
@@ -39,7 +39,7 @@ async function checkIPBlock(req, res, next) {
     const ip = getClientIP(req);
     const ipHash = ip.replace(/\./g, "_");
     const blockSnap = await db.ref(`blocked_ips/${ipHash}`).once("value");
-    
+
     if (blockSnap.exists()) {
       const block = blockSnap.val();
       if (block.type === 'perm') {
@@ -65,7 +65,7 @@ async function recordIPAction(ip, action, type = 'temp') {
   const ipHash = ip.replace(/\./g, "_");
   const today = new Date().toISOString().split('T')[0];
   const statsRef = db.ref(`ip_stats/${ipHash}/${today}/${action}`);
-  
+
   await statsRef.transaction((current) => (current || 0) + 1);
   const snap = await statsRef.once("value");
   const count = snap.val();
@@ -80,7 +80,7 @@ async function recordIPAction(ip, action, type = 'temp') {
       reason: `Terlalu banyak request ${action}`
     });
   }
-  
+
   // Rule 2: Spam Ujian Non-Login > 20x semalam -> Blokir Permanen
   if (action === 'exam_guest' && count > 20) {
     await db.ref(`blocked_ips/${ipHash}`).set({
@@ -227,7 +227,7 @@ app.post("/otp/send", checkIPBlock, async (req, res) => {
     // Cek cooldown di Firebase
     const otpRef = db.ref(`otps/${username}`);
     const existingSnap = await otpRef.once("value");
-    
+
     if (existingSnap.exists()) {
       const lastSent = existingSnap.val().timestamp;
       const remains = (lastSent + 2 * 60 * 1000) - Date.now();
@@ -625,11 +625,11 @@ app.delete("/exams/:id", requireAuth, async (req, res) => {
     if (!snap.exists()) return res.status(404).json({ error: "Ujian tidak ditemukan" });
 
     const examData = snap.val();
-    
+
     // Check ownership: Must be owner OR admin
     // Note: This matches both 'uploadedBy' and 'createdBy' for backward compatibility
     const owner = examData.uploadedBy || examData.createdBy;
-    
+
     if (owner !== username) {
       // Check if user is actually an admin
       const userSnap = await db.ref(`users/${username}/role`).once("value");
@@ -709,7 +709,7 @@ app.get("/users/all", requireAuth, async (req, res) => {
   try {
     const snap = await db.ref("users").once("value");
     const users = snap.val() || {};
-    
+
     // Sanitize for privacy/security: remove passwords and IPs
     const sanitizedUsers = {};
     Object.keys(users).forEach(uid => {
@@ -719,7 +719,7 @@ app.get("/users/all", requireAuth, async (req, res) => {
       delete user.lastLoginIP;
       sanitizedUsers[uid] = user;
     });
-    
+
     res.json(sanitizedUsers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -798,7 +798,7 @@ app.post("/ai/generate", requireAuth, async (req, res) => {
     const maxQuestions = Math.min(parseInt(count), 20);
     const typesStr = (questionTypes && questionTypes.length > 0) ? questionTypes.join(", ") : "Pilihan Ganda (PG)";
 
-const systemPrompt = `Kamu adalah guru cerdas penanggung jawab pembuatan soal olimpiade. TUGAS UTAMA: Buatkan tepat ${maxQuestions} soal dengan variasi tipe: [${typesStr}] berdasarkan perintah pengguna: "${prompt}" ${subMateri ? "dengan sub-materi: " + subMateri : ""}.
+    const systemPrompt = `Kamu adalah guru cerdas penanggung jawab pembuatan soal olimpiade. TUGAS UTAMA: Buatkan tepat ${maxQuestions} soal dengan variasi tipe: [${typesStr}] berdasarkan perintah pengguna: "${prompt}" ${subMateri ? "dengan sub-materi: " + subMateri : ""}.
 ${imageContent ? "INSTRUKSI KRITIS: Pengguna melampirkan file REFERENSI! Kamu WAJIB meneliti isi file tersebut dan membuat soal yang bersumber atau terinspirasi kuat dari konten file tersebut. JANGAN membuat soal yang tidak relevan dengan referensi ini." : ""}
 
 Tipe Soal Detail:
@@ -863,7 +863,7 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
       if (imageContent && imageMimeType) {
         if (model === "meta-llama/llama-3.1-8b-instruct" || model === "anthropic/claude-3-haiku") {
           // Both might complain about image structure depending on the format. We fallback to Gemini Flash on openrouter.
-          model = "google/gemini-1.5-flash";
+          model = "google/gemini-2.5-flash";
         }
         contentPayload = [
           { type: "text", text: systemPrompt },
@@ -884,11 +884,13 @@ Pastikan total ada tepat ${maxQuestions} soal.`;
           temperature: 0.7,
           max_tokens: 3000
         },
-        { headers: { 
+        {
+          headers: {
             "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
             "HTTP-Referer": "https://arthea-smart-class.arsyir.my.id",
             "X-Title": "Arthea Smart Class"
-        } }
+          }
+        }
       );
       generatedText = response.data.choices[0].message.content;
     }

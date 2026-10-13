@@ -25,34 +25,16 @@ export default function Login() {
     setIsSubmitting(true);
     setError('');
 
-    const BACKEND_URL = '/api/backend';
-
     try {
-      // 1. Check IP Block & Track Login
-      const trackRes = await fetch(`${BACKEND_URL}/auth/login-track`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
-      });
-
-      if (!trackRes.ok) {
-        let errorMsg = 'Akses ditolak.';
-        try {
-          const data = await trackRes.json();
-          errorMsg = data.error || errorMsg;
-        } catch (e) {
-          errorMsg = `Terjadi kesalahan pada server (Status: ${trackRes.status}). Silakan coba beberapa saat lagi.`;
-        }
-        setError(errorMsg);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // 2. Auth Logic
+      // Auth Logic via Firebase Realtime Database
       const snapshot = await get(child(ref(db), `users/${username}`));
       if (snapshot.exists()) {
         const userData = snapshot.val();
         if (userData.password === password) {
+          // Update last login timestamp in background
+          import('firebase/database').then(({ update }) => {
+            update(ref(db, `users/${username}`), { lastLoginAt: Date.now() }).catch(() => {});
+          });
           login(userData.role || 'user', username);
           router.push('/');
         } else {

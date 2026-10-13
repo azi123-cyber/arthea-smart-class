@@ -6,7 +6,7 @@ import { AlertTriangle, User, Image } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { ref, set, get } from 'firebase/database';
+import { ref, set, get, update } from 'firebase/database';
 import { useAuth } from '@/context/AuthContext';
 
 import ReactMarkdown from 'react-markdown';
@@ -33,24 +33,16 @@ export default function PublicQuizInterface() {
   const [editingPembahasan, setEditingPembahasan] = useState<{idx: number, text: string} | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  const BACKEND_URL = '/api/backend';
-  const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
-
-
   useEffect(() => {
     if (!params.id) return;
     
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Coba fetch dari proxy backend untuk bypass permission denied
-        let res = await fetch(`${BACKEND_URL}/exams/${params.id}`, { cache: 'no-store' });
-        if (!res.ok) {
-           res = await fetch(`${BACKEND_URL}/materials/${params.id}`, { cache: 'no-store' });
-        }
+        const snap = await get(ref(db, `materials/${params.id}`));
 
-        if (res.ok) {
-          const data = await res.json();
+        if (snap.exists()) {
+          const data = snap.val();
           setMaterialData(data);
           
           let qList = [];
@@ -180,40 +172,17 @@ export default function PublicQuizInterface() {
 
   const handleStartExam = async () => {
      if (!guestName.trim() && !username) return;
-     setLoading(true);
-     try {
-        const res = await fetch(`${BACKEND_URL}/api/track-ip`, {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ action: username ? 'exam_login' : 'exam_guest' })
-        });
-        if (!res.ok) {
-           const data = await res.json();
-           setIpBlocked(data.error || "Akses diblokir.");
-           setLoading(false);
-           return;
-        }
-        setHasStarted(true);
-     } catch (e) {
-        setHasStarted(true); // Fallback if backend down
-     } finally {
-        setLoading(false);
-     }
+     setHasStarted(true);
   };
 
   const handleSavePembahasan = async () => {
     if (!editingPembahasan || !materialData) return;
     setUpdating(true);
     try {
-      let type = 'exams';
-      let res = await fetch(`${BACKEND_URL}/exams/${params.id}`);
-      if (!res.ok) {
-        res = await fetch(`${BACKEND_URL}/materials/${params.id}`);
-        type = 'materials';
-      }
-      if (!res.ok) throw new Error("Gagal mengambil data master soal");
+      const snap = await get(ref(db, `materials/${params.id}`));
+      if (!snap.exists()) throw new Error("Gagal mengambil data master soal");
       
-      const masterData = await res.json();
+      const masterData = snap.val();
       let qList = [];
       if (masterData.questions) {
         qList = typeof masterData.questions === 'string' ? JSON.parse(masterData.questions) : masterData.questions;
@@ -227,20 +196,12 @@ export default function PublicQuizInterface() {
         qList[editingPembahasan.idx].explanation = editingPembahasan.text;
       }
 
-      const updateRes = await fetch(`${BACKEND_URL}/${type}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: params.id,
-          username: username,
-          updates: {
-            [type === 'exams' ? 'questions' : 'content']: JSON.stringify(qList)
-          }
-        })
-      });
+      const updates = {
+        questions: JSON.stringify(qList),
+        content: JSON.stringify(qList)
+      };
+      await update(ref(db, `materials/${params.id}`), updates);
 
-      if (!updateRes.ok) throw new Error("Gagal memperbarui pembahasan di server");
-      
       alert("Pembahasan berhasil diperbarui!");
       const newQs = [...questions];
       newQs[editingPembahasan.idx].pembahasan = editingPembahasan.text;

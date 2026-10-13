@@ -6,13 +6,7 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, push, set, remove } from 'firebase/database';
 import { Card } from '@/components/ui/Card';
 
-// Backend proxy untuk operasi non-file (delete, dll)
-const BACKEND_URL = '/api/backend';
-const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
-
-// Cloudinary - Upload gambar gratis langsung dari browser
-const CLOUDINARY_CLOUD_NAME = 'djlgykgj9';
-const CLOUDINARY_UPLOAD_PRESET = 'Arthea';
+import { fileToBase64 } from '@/lib/imageUtils';
 
 export default function Forum() {
   const { role, username } = useAuth();
@@ -46,35 +40,17 @@ export default function Forum() {
     });
   }, []);
 
-  // Upload file ke Cloudinary (gratis, permanen, HTTPS)
-  const uploadToCloudinary = async (file: File): Promise<string | null> => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      formData.append('folder', 'forum');
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
-        { method: 'POST', body: formData }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        return data.secure_url as string; // URL HTTPS permanen
-      } else {
-        const err = await res.json();
-        console.error('Cloudinary upload error:', err);
-      }
-    } catch (err) {
-      console.error('Upload failed:', err);
-    }
-    return null;
-  };
-
   const handleCreateTopic = async () => {
     if (!newTopicTitle || !newTopicContent) return;
     setUploadingFile(true);
     let fileUrl: string | null = null;
-    if (topicFile) fileUrl = await uploadToCloudinary(topicFile);
+    if (topicFile) {
+      try {
+        fileUrl = await fileToBase64(topicFile);
+      } catch (err) {
+        console.error("Gagal memproses file:", err);
+      }
+    }
 
     // Ambil data user
     let userRealName = username;
@@ -118,9 +94,13 @@ export default function Forum() {
     let fileType: string | null = null;
     let fileName: string | null = null;
     if (replyFile) {
-      fileUrl = await uploadToCloudinary(replyFile);
-      fileType = replyFile.type.startsWith('image/') ? 'image' : 'document';
-      fileName = replyFile.name;
+      try {
+        fileUrl = await fileToBase64(replyFile);
+        fileType = replyFile.type.startsWith('image/') ? 'image' : 'document';
+        fileName = replyFile.name;
+      } catch (err) {
+        console.error("Gagal memproses file balasan:", err);
+      }
     }
     let userRealName = username;
     try {
@@ -147,33 +127,11 @@ export default function Forum() {
     setUploadingFile(false);
   };
 
-  // Cloudinary: hapus file tidak perlu dari frontend (butuh API key secret)
-  // File di Cloudinary akan tetap ada tapi tidak masalah (storage 25GB gratis)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const deleteFileFromBackend = async (_fileUrl: string) => {
-    // Cloudinary deletion membutuhkan server-side API secret
-    // File akan tetap di Cloudinary tapi tidak ditampilkan lagi setelah entry Firebase dihapus
-    // Ini aman karena storage 25GB gratis dan tidak ada masalah privasi (URL tidak diindex)
-  };
-
   const handleDeleteTopic = async (e: React.MouseEvent, topicId: string) => {
     e.stopPropagation();
-    const topic = topics.find(t => t.id === topicId);
     if (confirm('Hapus diskusi ini selamanya?')) {
       try {
-        // Hapus via backend (pakai Firebase Admin SDK - bypass rules)
-        const res = await fetch(`${BACKEND_URL}/firebase/path`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-token': API_TOKEN,
-          },
-          body: JSON.stringify({ path: `forum/${topicId}` }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Gagal hapus');
-        }
+        await remove(ref(db, `forum/${topicId}`));
         setSelectedTopic(null);
         alert('Diskusi berhasil dihapus.');
       } catch (err: any) {
@@ -181,25 +139,11 @@ export default function Forum() {
       }
     }
   };
-  // suppress unused warning dari deleteFileFromBackend
-  void deleteFileFromBackend;
 
   const handleDeleteReply = async (topicId: string, replyKey: string) => {
     if (confirm('Hapus balasan ini?')) {
       try {
-        // Hapus via backend (pakai Firebase Admin SDK - bypass rules)
-        const res = await fetch(`${BACKEND_URL}/firebase/path`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-token': API_TOKEN,
-          },
-          body: JSON.stringify({ path: `forum/${topicId}/replyList/${replyKey}` }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Gagal hapus');
-        }
+        await remove(ref(db, `forum/${topicId}/replyList/${replyKey}`));
         alert('Balasan berhasil dihapus.');
       } catch (err: any) {
         alert('Gagal menghapus balasan: ' + err.message);
@@ -209,25 +153,6 @@ export default function Forum() {
 
   const fixUrl = (url?: string) => {
     if (!url) return url;
-    // Cloudinary URL sudah HTTPS, langsung pakai
-    if (url.startsWith('https://res.cloudinary.com')) return url;
-    // URL lama dari backend Pterodactyl (HTTP) - lewatkan proxy agar tidak Mixed Content
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      const match = url.match(/\/uploads\/(.+)$/);
-      if (match) {
-        const segments = match[1].split('/');
-        const fileName = segments[segments.length - 1];
-        if (fileName) return `/api/uploads/${fileName}`;
-      }
-    }
-    // Jika relative path /uploads/...
-    if (url.startsWith('/uploads/')) {
-      const rest = url.replace('/uploads/', '');
-      const fileName = rest.split('/').pop();
-      if (fileName) return `/api/uploads/${fileName}`;
-    }
-    // Sudah pakai proxy, return as-is
-    if (url.startsWith('/api/uploads/')) return url;
     return url;
   };
 

@@ -6,6 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Save, ChevronLeft, Plus, Trash2, PencilLine } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { ref, get, update } from 'firebase/database';
 
 export default function ExamEditor() {
   const params = useParams();
@@ -24,23 +26,17 @@ export default function ExamEditor() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Try to fetch from exams first
-        let type = 'exams';
-        let res = await fetch(`/api/backend/exams/${params.id}`, { cache: 'no-store' });
-        if (!res.ok) {
-          type = 'materials';
-          res = await fetch(`/api/backend/materials/${params.id}`, { cache: 'no-store' });
-        }
+        const snap = await get(ref(db, `materials/${params.id}`));
 
-        if (res.ok) {
-          const data = await res.json();
+        if (snap.exists()) {
+          const data = snap.val();
           // Permission Check: only original uploader or admin can edit
           if (data.uploadedBy !== username && role !== 'admin') {
             setError("Anda tidak memiliki izin untuk mengedit ujian ini.");
             return;
           }
 
-          setExamData({ ...data, type });
+          setExamData({ ...data, type: 'materials' });
           let qs = [];
           if (data.questions) {
             qs = typeof data.questions === 'string' ? JSON.parse(data.questions) : data.questions;
@@ -68,39 +64,27 @@ export default function ExamEditor() {
     if (!examData) return;
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/backend/${examData.type}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: params.id,
-          username,
-          updates: {
-             title: examData.title,
-             subject: examData.subject,
-             targetClass: examData.targetClass,
-             hasTimer: examData.hasTimer,
-             durationMinutes: examData.hasTimer ? (examData.durationMinutes > 360 ? null : examData.durationMinutes) : null,
-             isUnlimitedTime: examData.hasTimer && examData.durationMinutes > 360,
-             maxAttempts: examData.maxAttempts > 5 ? 0 : examData.maxAttempts,
-             isUnlimitedAttempts: examData.maxAttempts > 5,
-             visibility: examData.visibility,
-             showPembahasanNow: examData.showPembahasanNow,
-             [examData.type === 'exams' ? 'questions' : 'content']: JSON.stringify(questions)
-          }
-        })
-      });
+      const updates = {
+        title: examData.title,
+        subject: examData.subject,
+        targetClass: examData.targetClass,
+        hasTimer: examData.hasTimer,
+        durationMinutes: examData.hasTimer ? (examData.durationMinutes > 360 ? null : examData.durationMinutes) : null,
+        isUnlimitedTime: examData.hasTimer && examData.durationMinutes > 360,
+        maxAttempts: examData.maxAttempts > 5 ? 0 : examData.maxAttempts,
+        isUnlimitedAttempts: examData.maxAttempts > 5,
+        visibility: examData.visibility,
+        showPembahasanNow: examData.showPembahasanNow,
+        questions: JSON.stringify(questions),
+        content: JSON.stringify(questions),
+      };
 
-      if (res.ok) {
-        alert("Ujian berhasil diperbarui!");
-        router.push('/tryout');
-        router.refresh();
-      } else {
-        const errData = await res.json();
-        alert("Gagal menyimpan: " + (errData.error || "Unknown error"));
-      }
-    } catch (err) {
+      await update(ref(db, `materials/${params.id}`), updates);
+      alert("Ujian berhasil diperbarui!");
+      router.push('/tryout');
+    } catch (err: any) {
       console.error(err);
-      alert("Error saat menghubungi server.");
+      alert("Error saat menyimpan perubahan: " + (err.message || 'Unknown error'));
     } finally {
       setIsSaving(false);
     }

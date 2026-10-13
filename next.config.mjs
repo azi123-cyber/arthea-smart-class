@@ -1,13 +1,37 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Env vars untuk server-side API proxy route (/api/backend/*)
-  // Wajib di set di Vercel Dashboard: Settings > Environment Variables
-  env: {
-    BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:5094',
-    API_SECRET_TOKEN: process.env.API_SECRET_TOKEN || process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini',
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: 'https://arthea-smart-class.arsyir.my.id' // Ganti dengan domain Anda
+          },
+          ...(process.env.NODE_ENV === 'production' ? [
+            {
+              key: 'Strict-Transport-Security',
+              value: 'max-age=63072000; includeSubDomains; preload'
+            },
+            {
+              key: 'X-Content-Type-Options',
+              value: 'nosniff'
+            },
+            {
+              key: 'X-Frame-Options',
+              value: 'DENY'
+            },
+            {
+              key: 'Content-Security-Policy',
+              value: "default-src 'self' vercel.live; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.vercel.app; style-src 'self' 'unsafe-inline' *.googleapis.com; img-src 'self' data: blob: *.googleusercontent.com; font-src 'self' *.gstatic.com; connect-src 'self' *.vercel.app"
+            }
+          ] : [])
+        ],
+      },
+    ];
   },
 };
 
 export default nextConfig;
-

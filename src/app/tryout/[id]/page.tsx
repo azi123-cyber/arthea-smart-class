@@ -33,14 +33,10 @@ export default function QuizInterface() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Coba fetch dari proxy backend
-        let res = await fetch(`/api/backend/exams/${params.id}`, { cache: 'no-store' });
-        if (!res.ok) {
-           res = await fetch(`/api/backend/materials/${params.id}`, { cache: 'no-store' });
-        }
-
-        if (res.ok) {
-          const mat = await res.json();
+        // Ambil data langsung dari Firebase Realtime Database
+        const snap = await get(ref(db, `materials/${params.id}`));
+        if (snap.exists()) {
+          const mat = snap.val();
           setMaterialData(mat);
           try {
              let parsed = typeof mat.content === 'string' ? JSON.parse(mat.content) : mat.content;

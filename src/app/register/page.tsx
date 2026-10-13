@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { User, Lock, AlertCircle, Fingerprint, MessageSquare, CheckCircle2, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
-const BACKEND_URL = '/api/backend';
+import { db } from '@/lib/firebase';
+import { ref, get, set, update } from 'firebase/database';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -17,12 +18,13 @@ export default function Register() {
   const [showPass, setShowPass] = useState(false);
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [otpCode, setOtpCode] = useState('');
+  const [currentExpectedOtp, setCurrentExpectedOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
   const { login } = useAuth();
 
-  // Step 1: Kirim OTP ke WA admin
+  // Step 1: Kirim OTP ke WA admin dan simpan ke Firebase Realtime Database
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim().length < 2) { setError('Nama min 2 karakter.'); return; }
@@ -32,25 +34,34 @@ export default function Register() {
     setIsSubmitting(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/otp/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, name, kelas, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 429) setError(data.error); // Cooldown 2 menit
-        else if (res.status === 403) setError(`Akses Diblokir: ${data.error}`);
-        else setError(data.error || 'Gagal mengirim OTP.');
+      const snap = await get(ref(db, `users/${username}`));
+      if (snap.exists() && snap.val().isVerified) {
+        setError('Username sudah digunakan.');
         setIsSubmitting(false);
         return;
       }
+
+      const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+      setCurrentExpectedOtp(generatedCode);
+
+      // Simpan data pendaftaran sementara ke Firebase
+      await set(ref(db, `users/${username}`), {
+        name,
+        username,
+        password,
+        kelas,
+        role: 'siswa',
+        createdAt: Date.now(),
+        isVerified: false,
+        otp: generatedCode
+      });
+
       setOtpSent(true);
       setStep('otp');
       
       // WhatsApp Redirection
       const waNumber = '6287744100119';
-      const waMessage = `.otp (${name}, ${username}, ${password}, ${kelas})`;
+      const waMessage = `.otp (${name}, ${username}, ${password}, ${kelas}) [Kode: ${generatedCode}]`;
       const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
       window.open(waUrl, '_blank');
 
@@ -62,8 +73,8 @@ export default function Register() {
           return prev - 1;
         });
       }, 1000);
-    } catch (err) {
-      setError('Tidak dapat terhubung ke server. Pastikan server backend berjalan.');
+    } catch (err: any) {
+      setError('Gagal menghubungkan ke database: ' + (err.message || 'Error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -77,22 +88,30 @@ export default function Register() {
     setIsSubmitting(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/otp/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, otp: otpCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Verifikasi gagal.');
+      const snap = await get(ref(db, `users/${username}`));
+      if (!snap.exists()) {
+        setError('Data pendaftaran tidak ditemukan.');
         setIsSubmitting(false);
         return;
       }
-      // Akun berhasil dibuat
+      const data = snap.val();
+      const validCode = data.otp || currentExpectedOtp;
+      if (validCode !== otpCode.trim()) {
+        setError('Kode OTP salah.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Akun berhasil diverifikasi
+      await update(ref(db, `users/${username}`), {
+        isVerified: true,
+        otp: null
+      });
+
       login('user', username);
       router.push('/');
-    } catch (err) {
-      setError('Tidak dapat terhubung ke server.');
+    } catch (err: any) {
+      setError('Gagal verifikasi: ' + (err.message || 'Error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -104,17 +123,15 @@ export default function Register() {
     setError('');
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/otp/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, name, kelas, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 429) setError(data.error);
-        else setError(data.error || 'Gagal mengirim ulang OTP.');
-        return;
-      }
+      const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+      setCurrentExpectedOtp(generatedCode);
+      await update(ref(db, `users/${username}`), { otp: generatedCode });
+
+      const waNumber = '6287744100119';
+      const waMessage = `.otp (${name}, ${username}, ${password}, ${kelas}) [Kode: ${generatedCode}]`;
+      const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
+      window.open(waUrl, '_blank');
+
       setResendCooldown(60);
       const interval = setInterval(() => {
         setResendCooldown(prev => {
@@ -122,8 +139,11 @@ export default function Register() {
           return prev - 1;
         });
       }, 1000);
-    } catch { setError('Gagal mengirim ulang OTP.'); }
-    finally { setIsSubmitting(false); }
+    } catch { 
+      setError('Gagal mengirim ulang OTP.'); 
+    } finally { 
+      setIsSubmitting(false); 
+    }
   };
 
   return (

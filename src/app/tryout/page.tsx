@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { ref, onValue, remove } from 'firebase/database';
 
 export default function TryoutList() {
   const { username } = useAuth();
@@ -13,52 +15,35 @@ export default function TryoutList() {
   useEffect(() => {
     if (username === undefined) return;
 
-    const fetchData = async () => {
-      try {
-        const [examsRes, materialsRes] = await Promise.all([
-          fetch('/api/backend/exams/list', { cache: 'no-store' }),
-          fetch('/api/backend/materials/list', { cache: 'no-store' })
-        ]);
-
-        const examsData = await examsRes.json();
-        const materialsData = await materialsRes.json();
-        
-        console.log("Exams from proxy:", examsData);
-        console.log("Materials from proxy:", materialsData);
-
-        const handleData = (data: any, isExams = false) => {
-          if (!data || data.error) return [];
-          return Object.entries(data)
-            .filter(([id, val]: [string, any]) =>
-              isExams || ((val.type === 'soal' || val.type === 'tryout') && 
-              (!val.isPrivate || val.uploadedBy === username))
-            )
-            .map(([id, val]: [string, any]) => ({
-              id,
-              ...val,
-              title: val.title,
-              subject: val.subject || (isExams ? 'Ujian Guru' : 'AI Gen'),
-              duration: val.durationMinutes || val.duration || 'Fleksibel',
-              date: isExams ? 'Ujian Guru' : 'AI / Soal Tersedia',
-              isExam: isExams
-            }));
-        };
-
-        const exams = handleData(examsData, true);
-        const materials = handleData(materialsData, false);
-
-        setTryouts([
-          ...exams,
-          ...materials
-        ].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
-
-      } catch (err) {
-        console.error(err);
-      } finally {
+    const materialsRef = ref(db, 'materials');
+    return onValue(materialsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) {
+        setTryouts([]);
         setLoading(false);
+        return;
       }
-    };
-    fetchData();
+
+      const list = Object.entries(data)
+        .filter(([id, val]: [string, any]) =>
+          (!val.isPrivate || val.uploadedBy === username)
+        )
+        .map(([id, val]: [string, any]) => ({
+          id,
+          ...val,
+          title: val.title,
+          subject: val.subject || (val.type === 'exam' ? 'Ujian Guru' : 'AI Gen'),
+          duration: val.durationMinutes || val.duration || 'Fleksibel',
+          date: val.type === 'exam' ? 'Ujian Guru' : 'AI / Soal Tersedia',
+          isExam: val.type === 'exam'
+        }));
+
+      setTryouts(list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
+      setLoading(false);
+    }, (err) => {
+      console.error('Error fetching materials:', err);
+      setLoading(false);
+    });
   }, [username]);
 
   return (
@@ -101,20 +86,11 @@ export default function TryoutList() {
                         const confirmed = window.confirm(`Hapus ${t.isExam ? 'ujian' : 'soal AI'} ini?`);
                         if (confirmed) {
                           try {
-                            const type = t.isExam ? 'exams' : 'materials';
-                            const res = await fetch(`/api/backend/${type}/${t.id}?username=${username}`, {
-                              method: 'DELETE'
-                            });
-                            if (res.ok) {
-                              alert("Berhasil dihapus");
-                              window.location.reload();
-                            } else {
-                              const err = await res.json();
-                              alert("Gagal menghapus: " + (err.error || "Unknown error"));
-                            }
-                          } catch (err) {
-                            console.error("Error deleting via proxy:", err);
-                            alert("Gagal menghubungi server");
+                            await remove(ref(db, `materials/${t.id}`));
+                            alert("Berhasil dihapus");
+                          } catch (err: any) {
+                            console.error("Error deleting material:", err);
+                            alert("Gagal menghapus: " + (err.message || "Unknown error"));
                           }
                         }
                       }}

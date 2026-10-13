@@ -5,10 +5,8 @@ import StatusAnimation from '@/components/StatusAnimation';
 import { Sparkles, FileText, UploadCloud, Brain, Zap, Settings, Lock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-
-// Gunakan proxy Next.js API agar tidak ada Mixed Content (HTTPS → HTTP)
-const BACKEND_URL = '/api/backend';
-const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || 'buat_token_rahasia_panjang_kamu_disini';
+import { db } from '@/lib/firebase';
+import { ref, push, set } from 'firebase/database';
 
 
 export default function AIGenerator() {
@@ -38,9 +36,7 @@ export default function AIGenerator() {
 
   useEffect(() => {
     if (username) {
-      fetch(`${BACKEND_URL}/ai/limits?uid=${username}`, {
-        headers: { 'x-api-token': API_TOKEN }
-      })
+      fetch(`/api/ai/limits?uid=${username}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -87,11 +83,10 @@ export default function AIGenerator() {
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/ai/generate`, {
+      const response = await fetch(`/api/ai/generate`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "x-api-token": API_TOKEN
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           uid: username,
@@ -119,7 +114,7 @@ export default function AIGenerator() {
         data = JSON.parse(responseText);
       } catch (e) {
         console.error("Non-JSON API Output:", responseText);
-        alert("Gagal terhubung ke backend. Pastikan backend dengan fitur AI sudah berjalan (node server.js lokal atau di server pterodactyl terupdate).");
+        alert("Gagal memproses respons dari layanan AI. Silakan coba lagi.");
         setLoading(false);
         return;
       }
@@ -500,21 +495,20 @@ export default function AIGenerator() {
                        setLoading(true);
                        try {
                           const materialTitle = `AI Generated: ${prompt.substring(0, 30)}`;
-                          const res = await fetch(`${BACKEND_URL}/materials/upload`, {
-                             method: 'POST',
-                             headers: { 'Content-Type': 'application/json', 'x-api-token': API_TOKEN },
-                             body: JSON.stringify({
-                                title: materialTitle, subject: subMateri || "AI Generator",
-                                type: "soal", content: JSON.stringify(generatedQuestions)
-                             })
+                          const newRef = push(ref(db, 'materials'));
+                          await set(newRef, {
+                             id: newRef.key,
+                             title: materialTitle,
+                             subject: subMateri || "AI Generator",
+                             type: "soal",
+                             content: JSON.stringify(generatedQuestions),
+                             createdAt: new Date().toISOString(),
+                             uploadedBy: username || 'Guru',
+                             isPrivate: false
                           });
-                          if(res.ok) {
-                             alert("Berhasil disimpan ke Bank Soal Umum!");
-                             setGenerated(false);
-                             setPrompt("");
-                          } else {
-                             alert("Gagal menyimpan!");
-                          }
+                          alert("Berhasil disimpan ke Bank Soal Umum!");
+                          setGenerated(false);
+                          setPrompt("");
                        } catch(e) { alert("Error menyimpan ke server!") }
                        setLoading(false);
                    }} className="px-8 py-3 rounded-full bg-primary text-white font-bold hover:scale-105 transition-transform shadow-lg shadow-primary/25">Simpan ke Bank Soal Umum</button>

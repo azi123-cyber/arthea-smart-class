@@ -5,6 +5,8 @@ import StatusAnimation from '@/components/StatusAnimation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { User as UserIcon, Calendar, Clock, BarChart4, Trophy, TrendingUp, TrendingDown, ChevronLeft } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { ref, get, update } from 'firebase/database';
 
 export default function ResultsPage() {
   const { role, username: currentUsername } = useAuth();
@@ -32,75 +34,54 @@ export default function ResultsPage() {
     }
   }, [currentUsername, role]);
 
-  const fetchResults = async (user: string, userRole: string) => {
+  const fetchResults = async (user: string, _userRole: string) => {
     try {
       setLoading(true);
-      const isPrivileged = userRole === 'admin' || userRole === 'teacher';
-      
-      const [resultsRes, usersRes] = await Promise.all([
-        fetch(isPrivileged ? '/api/backend/results/all' : `/api/backend/results/${user}`, { cache: 'no-store' }),
-        fetch(isPrivileged ? '/api/backend/users/all' : `/api/backend/users/all`, { cache: 'no-store' }) // Tetap butuh semua user info untuk link nama
+      const [resultsSnap, userSnap] = await Promise.all([
+        get(ref(db, `results/${user}`)),
+        get(ref(db, `users/${user}`)),
       ]);
 
-      const rawData = await resultsRes.json();
-      const usersData = await usersRes.json();
+      const userResults = resultsSnap.exists() ? resultsSnap.val() : {};
+      const userObj = userSnap.exists() ? userSnap.val() : {};
+      const studentClass = userObj.kelas || 'Umum';
 
-      if (rawData && !rawData.error) {
-        const allData = isPrivileged ? rawData : { [user]: rawData };
-        
-        const resultsList: any[] = [];
-        const stats: any[] = [];
-        
-        let currentUserTotal = 0;
-        let currentUserCount = 0;
+      const resultsList: any[] = [];
+      let currentUserTotal = 0;
+      let currentUserCount = 0;
 
-        Object.entries(allData).forEach(([u, userResults]: [string, any]) => {
-          let totalScore = 0;
-          let count = 0;
-          const userObj = usersData[u] || {};
-          const studentClass = userObj.kelas || 'Umum';
-
-          Object.entries(userResults).forEach(([id, val]: [string, any]) => {
-            totalScore += Number(val.score || 0);
-            count++;
-            
-            if (u === user || userRole === 'admin' || userRole === 'teacher') {
-              resultsList.push({
-                id,
-                studentUsername: u,
-                studentName: userObj.name || u,
-                studentClass: studentClass,
-                ...val,
-                date: new Date(val.timestamp).toLocaleString('id-ID')
-              });
-            }
-          });
-          
-          if (count > 0) {
-            const avg = Math.round(totalScore / count);
-            if (u === user) {
-               currentUserTotal = totalScore;
-               currentUserCount = count;
-            }
-            stats.push({
-               username: u,
-               name: userObj.name || u,
-               kelas: studentClass,
-               average: avg,
-               tryouts: count
-            });
-          }
+      Object.entries(userResults).forEach(([id, val]: [string, any]) => {
+        const score = Number(val.score || 0);
+        currentUserTotal += score;
+        currentUserCount++;
+        resultsList.push({
+          id,
+          studentUsername: user,
+          studentName: userObj.name || user,
+          studentClass: studentClass,
+          ...val,
+          date: new Date(val.timestamp).toLocaleString('id-ID')
         });
-        
-        setResults(resultsList.sort((a, b) => b.timestamp - a.timestamp));
-        setGlobalStats(stats.sort((a, b) => b.average - a.average));
-        
-        if (currentUserCount > 0) {
-           setUserStats({ average: Math.round(currentUserTotal / currentUserCount), count: currentUserCount });
-        }
+      });
+
+      setResults(resultsList.sort((a, b) => b.timestamp - a.timestamp));
+
+      if (currentUserCount > 0) {
+        const avg = Math.round(currentUserTotal / currentUserCount);
+        setUserStats({ average: avg, count: currentUserCount });
+        setGlobalStats([{
+          username: user,
+          name: userObj.name || user,
+          kelas: studentClass,
+          average: avg,
+          tryouts: currentUserCount
+        }]);
+      } else {
+        setUserStats({ average: 0, count: 0 });
+        setGlobalStats([]);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching results:', err);
     } finally {
       setLoading(false);
     }
@@ -126,16 +107,11 @@ export default function ResultsPage() {
     if (!editingPembahasan || !selectedResult) return;
     setUpdating(true);
     try {
-      // 1. Fetch original exam/material to get current questions
-      let type = 'exams';
-      let res = await fetch(`/api/backend/exams/${selectedResult.tryoutId}`);
-      if (!res.ok) {
-        res = await fetch(`/api/backend/materials/${selectedResult.tryoutId}`);
-        type = 'materials';
-      }
-      if (!res.ok) throw new Error("Gagal mengambil data master soal");
+      // 1. Fetch original material to get current questions
+      const snap = await get(ref(db, `materials/${selectedResult.tryoutId}`));
+      if (!snap.exists()) throw new Error("Data master soal tidak ditemukan di database");
       
-      const masterData = await res.json();
+      const masterData = snap.val();
       let questions = [];
       if (masterData.questions) {
         questions = typeof masterData.questions === 'string' ? JSON.parse(masterData.questions) : masterData.questions;
@@ -150,20 +126,12 @@ export default function ResultsPage() {
         questions[editingPembahasan.idx].explanation = editingPembahasan.text;
       }
 
-      // 3. Save back to server
-      const updateRes = await fetch(`/api/backend/${type}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: selectedResult.tryoutId,
-          username: currentUsername,
-          updates: {
-            [type === 'exams' ? 'questions' : 'content']: JSON.stringify(questions)
-          }
-        })
-      });
-
-      if (!updateRes.ok) throw new Error("Gagal memperbarui pembahasan di server");
+      // 3. Save back directly to Firebase Realtime Database
+      const updates = {
+        questions: JSON.stringify(questions),
+        content: JSON.stringify(questions)
+      };
+      await update(ref(db, `materials/${selectedResult.tryoutId}`), updates);
       
       alert("Pembahasan berhasil diperbarui!");
       // Update local state to reflect change in current view
